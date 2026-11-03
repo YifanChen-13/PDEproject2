@@ -1,0 +1,27 @@
+gate_small_grid {'smax': 180, 'h': 30, 'stage': 1, 'exact_boundary': True} star 60.0 res 4.440892098500626e-16 iter 1
+stage1_exact_boundary {'smax': 400, 'h': 0.5, 'stage': 1, 'exact_boundary': True} star 71.5 res 2.1110224679432577e-11 iter 57
+stage1_exact_boundary {'smax': 400, 'h': 0.25, 'stage': 1, 'exact_boundary': True} star 71.25 res 4.858335955759685e-11 iter 115
+stage1_exact_boundary {'smax': 400, 'h': 0.125, 'stage': 1, 'exact_boundary': True} star 71.375 res 2.915001573455811e-11 iter 229
+stage1_exact_boundary {'smax': 400, 'h': 0.0625, 'stage': 1, 'exact_boundary': True} star 71.4375 res 1.1641532182693481e-10 iter 457
+stage2_fine_grid_reference {'smax': 600, 'h': 0.0078125, 'stage': 2, 'tol': 2e-06} star 69.265625 res 2.9802322387695312e-08 iter 3934
+stage2_reference_check {'smax': 600, 'h': 0.00390625, 'stage': 2, 'tol': 1e-05} star 69.265625 res 1.1920928955078125e-07 iter 7868
+stage2_h_study {'smax': 600, 'h': 0.5, 'stage': 2} star 69.0 res 4.704148182099743e-11 iter 62
+stage2_h_study {'smax': 600, 'h': 0.25, 'stage': 2} star 69.25 res 3.872457909892546e-11 iter 123
+stage2_h_study {'smax': 600, 'h': 0.125, 'stage': 2} star 69.25 res 1.7577406197233358e-10 iter 246
+stage2_h_study {'smax': 600, 'h': 0.0625, 'stage': 2} star 69.25 res 9.557865610076988e-10 iter 492
+stage2_domain_study {'smax': 300, 'h': 0.0625, 'stage': 2} star 69.6875 res 2.3283064365386963e-10 iter 485
+stage2_domain_study {'smax': 400, 'h': 0.0625, 'stage': 2} star 69.4375 res 4.656612873077393e-10 iter 489
+stage2_domain_study {'smax': 600, 'h': 0.0625, 'stage': 2} star 69.25 res 9.557865610076988e-10 iter 492
+tolerance_study {'smax': 600, 'h': 0.125, 'stage': 2, 'tol': 0.0001} star 69.25 res 1.7577406197233358e-10 iter 246
+tolerance_study {'smax': 600, 'h': 0.125, 'stage': 2, 'tol': 1e-06} star 69.25 res 1.7577406197233358e-10 iter 246
+tolerance_study {'smax': 600, 'h': 0.125, 'stage': 2, 'tol': 1e-08} star 69.25 res 1.7577406197233358e-10 iter 246
+tolerance_study {'smax': 600, 'h': 0.125, 'stage': 2, 'tol': 1e-10} star 69.25 res 1.7577406197233358e-10 iter 247
+contact_tolerance_study {'smax': 600, 'h': 0.0625, 'stage': 2, 'contact_tol': 1e-09} star 69.25 res 9.557865610076988e-10 iter 492
+contact_tolerance_study {'smax': 600, 'h': 0.0625, 'stage': 2, 'contact_tol': 1e-07} star 69.25 res 9.557865610076988e-10 iter 492
+contact_tolerance_study {'smax': 600, 'h': 0.0625, 'stage': 2, 'contact_tol': 1e-05} star 69.25 res 9.557865610076988e-10 iter 492
+{
+  "ode_star": 69.26448256012908,
+  "reference_change": 0.00032843262018289465,
+  "ref_ODE_error": 0.0006567899681684253,
+  "finer_ODE_error": 0.0003283573479855306
+}

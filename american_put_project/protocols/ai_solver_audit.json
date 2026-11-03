@@ -1,0 +1,9 @@
+{
+  "gate1": "PASS: signs, stencil, obstacle and endpoint treatment derived",
+  "gate2": "PASS: independent hand row and dense matrix-action check",
+  "gate3": "PASS: exhaustive small-grid active-set comparison",
+  "gate4": "PASS: four-level exact convergence and independent continuous ODE verification",
+  "gate5": "PASS: physical inequalities, tolerance sweep, contact tolerance sweep, domain sensitivity",
+  "official_worksheet_available": false,
+  "scope": "Custom five-gate audit; not the unavailable official course worksheet or student sign-off."
+}

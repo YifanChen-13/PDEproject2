@@ -35,12 +35,11 @@ Each member writes their own report section and commits through their own accoun
 
 A's baseline assembly is complete, with **27 basic tests passed**; see [A's handoff notes](docs/handoff_A.md).
 
-**Member B — Irenetaylor55: implementation and local validation completed on [feature/first-order](https://github.com/YifanChen-13/PDEproject2/tree/feature/first-order); pending review and merge into main.**
-
+B's baseline is currently complete
 - Implemented first-order Neumann and Robin boundary closures in `boundary_first_order.py`, preserving interior equations and Dirichlet corners.
 - Added 11 tests covering N=2/N=4 hand-calculated rows, repeated application, manufactured-solution defects, affine derivative probes, and small integrated solves.
 - **All 38 local tests passed** (27 existing + 11 new). Small-grid errors approximately halve under refinement, consistent with first-order convergence.
-- Completed [boundary derivations](https://github.com/YifanChen-13/PDEproject2/blob/feature/first-order/docs/derivation_first_order.md), [precomputation predictions](https://github.com/YifanChen-13/PDEproject2/blob/feature/first-order/docs/precomputation_B.md), and [handoff notes](https://github.com/YifanChen-13/PDEproject2/blob/feature/first-order/docs/handoff_B.md).
+- Completed [boundary derivations], [precomputation predictions], and [handoff notes].
 
 B's code remains on the feature branch until merged. C's independent review, E's solver integration, D's formal convergence experiments, and the official course audit remain pending. The main branch still contains the B–E placeholder entry points.
 
@@ -128,13 +127,11 @@ $$
 
 A 的基础装配已经完成，**27 项基础测试通过**，详见 [A 的交接记录](docs/handoff_A.md)。
 
-**B 成员 Irenetaylor55：已在 [feature/first-order 分支](https://github.com/YifanChen-13/PDEproject2/tree/feature/first-order)完成实现和本地验证，待复核并合入 main。**
-
+B 完成实现和本地验证，待复核并合入 main。**
 - 完成 `boundary_first_order.py` 中 Neumann / Robin 两种一阶边界闭合，保留内部方程和 Dirichlet 角点。
 - 新增 11 项测试，覆盖 N=2/N=4 手算边界行、重复调用、制造解缺陷、线性函数导数和小规模集成求解。
 - **本地 38 项测试全部通过**（原有 27 项 + 新增 11 项）。小网格误差随加密约减半，符合一阶预期。
-- 完成[边界公式推导](https://github.com/YifanChen-13/PDEproject2/blob/feature/first-order/docs/derivation_first_order.md)、[计算前预测](https://github.com/YifanChen-13/PDEproject2/blob/feature/first-order/docs/precomputation_B.md)和[交接记录](https://github.com/YifanChen-13/PDEproject2/blob/feature/first-order/docs/handoff_B.md)。
-
+- 完成[边界公式推导]、[计算前预测]和[交接记录]。
 B 的代码在合并前仍位于工作分支。C 的独立复核、E 的正式求解器集成、D 的正式收敛实验和课程审计尚待完成；main 分支目前仍保留 B–E 的占位函数入口。
 
 `assemble_core` 将右边界矩阵行和对应右端项保留为零，交由 B、C 填入。在接入边界闭合之前，这个矩阵尚未装配完整。

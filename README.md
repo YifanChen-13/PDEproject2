@@ -33,7 +33,11 @@ Each member writes their own report section and commits through their own accoun
 
 ### Current status
 
-A's baseline assembly is complete, with **27 basic tests passed**. The test environment and results are recorded in [A's handoff notes](docs/handoff_A.md). The function entry points for B–E are in place and currently raise `NotImplementedError`. Grid construction, interior matrix assembly and known Dirichlet contributions can be checked now; the boundary closures and solver still need to be implemented for a complete mixed-boundary solution.
+A's baseline assembly and B's first-order Neumann / Robin boundary closures are complete. Local validation passed **38 tests** (27 existing tests and 11 added by B). See [A's handoff notes](docs/handoff_A.md) and [B's handoff notes](docs/handoff_B.md).
+
+B's closure replaces only the open-right-edge rows, preserves interior equations and Dirichlet corners, and supports repeated application without accumulating contributions. Tests cover hand-calculated N=2/N=4 rows, manufactured-solution defects, affine derivative probes, and small integrated solves with SciPy `spsolve`. Small-grid errors decrease approximately linearly with h; these checks do not replace D's formal convergence experiments.
+
+See [B's boundary derivation](docs/derivation_first_order.md), [precomputation predictions](docs/precomputation_B.md), and [tests](tests/test_first_order.py). C's ghost closure, D's error metrics, and E's solver entry point remain to be implemented. Independent review by C and the official course audit remain pending.
 
 `assemble_core` leaves the right-boundary rows and their right-hand-side entries at zero for B and C to fill. This matrix is incomplete until a boundary closure has been applied.
 
@@ -80,7 +84,7 @@ The inspection script reports the number of unknowns, reserved boundary rows and
 
 ### Next steps
 
-B and C create separate branches from `main` and implement their boundary rows. E connects the sparse direct solver, while D starts with the error functions. The first integrated case is Neumann with the first-order closure on a small grid, followed by the other three combinations and the experiments on four mesh levels.
+B's implementation is ready for C's independent review. C implements the ghost-point closure, E connects the sparse direct solver, and D implements the error functions. Integrate B's closure through E's solver entry point, then complete all four combinations and the experiments on four mesh levels.
 
 The final experiments will report global, right-boundary and interior errors, a scaled algebraic residual, and matrix nonsymmetry. Convergence rates will be calculated from the computed data. The complete coursework also requires the report, independent reviews and the course's five-gate audit.
 
@@ -117,7 +121,11 @@ $$
 
 ### 当前进度
 
-A 的基础装配已经完成，**27 项基础测试通过**。测试环境和结果记在 [A 的交接记录](docs/handoff_A.md)。B–E 的函数入口已保留，目前调用时会抛出 `NotImplementedError`。现阶段可以检查网格、内部矩阵和已知 Dirichlet 边界项；完整的混合边界求解还需要实现两种边界闭合和求解器。
+A 的基础装配与 B 的 Neumann / Robin 一阶边界闭合已完成。本地验证 **38 项测试通过**（原有 27 项，B 新增 11 项），详见 [A 的交接记录](docs/handoff_A.md)和 [B 的交接记录](docs/handoff_B.md)。
+
+B 的实现只替换开放右边界行，保留内部方程与 Dirichlet 角点，重复调用不会累加贡献。测试覆盖 N=2/N=4 手算系数、制造解缺陷、线性函数导数，以及使用 SciPy `spsolve` 的小规模集成求解。小网格误差随 h 约按一阶下降；这些检查不替代 D 的正式收敛实验。
+
+相关材料：[B 的边界推导](docs/derivation_first_order.md)、[计算前预测](docs/precomputation_B.md)、[边界测试](tests/test_first_order.py)。C 的 ghost 闭合、D 的误差工具和 E 的求解器入口仍待实现；C 的独立复核和正式课程审计尚待完成。
 
 `assemble_core` 将右边界矩阵行和对应右端项保留为零，交由 B、C 填入。在接入边界闭合之前，这个矩阵尚未装配完整。
 
@@ -164,6 +172,6 @@ macOS / Linux：
 
 ### 后续安排
 
-B、C 从 `main` 分别建立分支，实现各自的边界行；E 接入稀疏直接求解器，D 先完成误差函数。首先打通小网格上的 Neumann + first-order 算例，再接入其余三种组合，最后统一运行四级网格实验。
+B 的实现已就绪，交由 C 独立复核推导；C 实现 ghost-point 闭合，E 接入稀疏直接求解器，D 完成误差函数。先通过 E 的求解器入口接入 B 的闭合，再完成其余组合和四级网格正式实验。
 
 正式实验将报告全局、右边界和内部误差、经过缩放的代数残差，以及矩阵的非对称性。收敛阶根据实际计算数据求得。完整作业还需完成报告、组员独立复核和课程要求的五关审计。

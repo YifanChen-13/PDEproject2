@@ -85,7 +85,7 @@ The inspection script checks the model and matrix rows without solving an LCP. R
 | `results/`, `figures/`, `protocols/` | Earlier numerical output and protocol records |
 | `Report_Source.md`, `build_report.py` | Existing report text and generation script |
 
-B starts with [A's handoff](american_put_project/docs/handoff_A.md), reviews policy iteration and adds independent small-grid LCP tests. C and D can prepare their studies in parallel. Former Poisson files remain in the repository-level `src/pde_bvp/`, `tests/` and `docs/`; the active code and progress for this topic are inside `american_put_project/`.
+B starts with [A's handoff](american_put_project/docs/handoff_A.md), reviews policy iteration and adds independent small-grid LCP tests. C and D can prepare their studies in parallel.
 
 ---
 
@@ -172,4 +172,4 @@ cd american_put_project
 | `results/`、`figures/`、`protocols/` | 先前的数值输出和过程记录 |
 | `Report_Source.md`、`build_report.py` | 已有报告正文和生成脚本 |
 
-B 从 [A 的交接说明](american_put_project/docs/handoff_A.md)开始，复核策略迭代并加入独立的小网格 LCP 测试。C、D 可同时准备实验。之前的 Poisson 文件保留在仓库根目录下的 `src/pde_bvp/`、`tests/` 和 `docs/`；本题代码与进度以 `american_put_project/` 为准。
+B 从 [A 的交接说明](american_put_project/docs/handoff_A.md)开始，复核策略迭代并加入独立的小网格 LCP 测试。C、D 可同时准备实验。

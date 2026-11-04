@@ -12,7 +12,7 @@ For $`\psi(S)=\max(K-S,0)`$, the operator and obstacle problem are
 
 $$
 \mathcal{L}V=\tfrac12\sigma(S)^2S^2V''+(r-q)SV'-rV,
-\qquad\min\{-\mathcal{L}V,V-\psi\}=0.
+\qquad\min\bigl(-\mathcal{L}V,\,V-\psi\bigr)=0.
 $$
 
 We use `K=100` and `r=0.05`, with the two stages in the Problem Pack, Section 5.3:
@@ -99,7 +99,7 @@ B starts with [A's handoff](american_put_project/docs/handoff_A.md), reviews pol
 
 $$
 \mathcal{L}V=\tfrac12\sigma(S)^2S^2V''+(r-q)SV'-rV,
-\qquad\min\{-\mathcal{L}V,V-\psi\}=0.
+\qquad\min\bigl(-\mathcal{L}V,\,V-\psi\bigr)=0.
 $$
 
 固定 `K=100`、`r=0.05`，按照题目包第 5.3 节分为两个阶段：

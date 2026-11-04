@@ -4,44 +4,8 @@ import numpy as np
 from scipy.linalg import solve_banded
 from scipy.integrate import solve_ivp
 from scipy.optimize import brentq
-
-K, R = 100.0, 0.05
-EXACT_STAR = K * 2.5 / 3.5
-
-def exact(s):
-    s = np.asarray(s, dtype=float)
-    v = K-s
-    mask = s > EXACT_STAR
-    v[mask] = (K-EXACT_STAR)*(s[mask]/EXACT_STAR)**(-2.5)
-    return v
-
-def volatility(s, stage):
-    if stage == 1:
-        return np.full_like(s, .2)
-    return .2*(1+.35*np.tanh(np.log(s/K)/.4))
-
-def assemble(smax, h, stage, exact_boundary=False):
-    n = round(smax/h)
-    assert abs(n*h-smax) < 1e-8
-    s = np.linspace(0, smax, n+1)
-    x = s[1:-1]
-    q = 0 if stage == 1 else .02
-    d = .5*volatility(x,stage)**2*x*x
-    b = (R-q)*x
-    lo = -d/h**2-np.maximum(-b,0)/h
-    up = -d/h**2-np.maximum(b,0)/h
-    diag = 2*d/h**2+np.abs(b)/h+R
-    right = float(exact(np.array([smax]))[0]) if exact_boundary else 0.
-    f = np.zeros(n-1)
-    f[0] -= lo[0]*K
-    f[-1] -= up[-1]*right
-    return s,lo,diag,up,f,right
-
-def action(lo,diag,up,v):
-    a=diag*v
-    a[1:] += lo[1:]*v[:-1]
-    a[:-1] += up[:-1]*v[1:]
-    return a
+from problem import K, R, EXACT_STAR, exact, volatility
+from discretization import assemble, action
 
 def solve(smax=600., h=.125, stage=2, tol=1e-8, exact_boundary=False,
           contact_tol=1e-7, maxiter=20000):

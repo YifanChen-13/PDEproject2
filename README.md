@@ -1,54 +1,52 @@
-# PDE Project 2: Mixed Boundary Data
+# Perpetual American Put: Obstacle and Free-Boundary BVP
 
 [English](#english) | [中文](#中文)
 
 ## English
 
-We solve the Poisson equation on the unit square using finite differences and compare two treatments of the right boundary: a first-order one-sided difference and a ghost-point closure. Each treatment is tested with Neumann and Robin conditions, giving four cases with the same interior discretisation and problem data.
+We study the value and exercise threshold of a perpetual American put. The price stays above the exercise payoff, and the exercise region is recovered from the solution. The working directory for this topic is [`american_put_project/`](american_put_project/).
 
-### Problem setup
+### Model and method
+
+For $`\psi(S)=\max(K-S,0)`$, the operator and obstacle problem are
 
 $$
--\Delta u=f,\qquad (x,y)\in(0,1)^2.
+\mathcal{L}V=\tfrac12\sigma(S)^2S^2V''+(r-q)SV'-rV,
+\qquad\min\{-\mathcal{L}V,V-\psi\}=0.
 $$
 
-The manufactured solution is $`u^*(x,y)=e^{x+y}`$, with source term $`f=-2e^{x+y}`$. Dirichlet data $`g=u^*`$ are prescribed on the left, bottom and top edges, including all four corners. On the open right edge $`x=1,\ 0<y<1`$, we use:
+We use `K=100` and `r=0.05`, with the two stages in the Problem Pack, Section 5.3:
 
-- **Neumann:** $`u_x=q(y)=e^{1+y}`$;
-- **Robin:** $`u_x+2u=r(y)=3e^{1+y}`$.
+| Stage | Parameters | Validation |
+|---|---|---|
+| 1: constant volatility | `q=0`, `sigma=0.20` | Exact value and exercise threshold $`S^*=500/7`$ |
+| 2: local volatility | `q=0.02`, $`\sigma(S)=0.20[1+0.35\tanh(\log(S/100)/0.40)]`$ | Refined-grid reference and a separate domain study |
 
-The uniform nodal grid has spacing $`h=1/N`$. Here, `N` is the number of intervals in each direction, so each edge has `N+1` nodes. See [Problem and interfaces](docs/interfaces.md) for the indexing, array shapes and function contracts.
+On `[0,Smax]`, the left endpoint is `V(0)=K`. Stage 1 uses the exact right endpoint in its main mesh-validation case. Stage 2 uses `V(Smax)=0`, comparing `Smax=300,400,600` at fixed spacing. Mesh refinement uses `h=0.5,0.25,0.125,0.0625`.
+
+Monotone upwind finite differences give a tridiagonal M-matrix. After eliminating the endpoints, the LCP is `min(A*v-rhs,v-psi)=0`, with `A=-L_h`; policy iteration supplies the solver. The [problem definition](american_put_project/docs/problem_definition.md) records the model and stencil.
 
 ### Team responsibilities
 
-| Member | Main work | Deliverables |
+| Member | Work | Deliverables |
 |---|---|---|
-| A | Problem data, grid and indexing, interior five-point stencil, Dirichlet elimination | `problem.py`, `grid.py`, `core.py`, basic tests, interface and handoff notes |
-| B | First-order Neumann and Robin boundary closures | `boundary_first_order.py`, boundary-row derivations, boundary tests and method description |
-| C | Ghost-point Neumann and Robin boundary closures | `boundary_ghost.py`, ghost-point elimination, boundary tests and method description |
-| D | Error norms, experiments on four mesh levels, convergence analysis and plots | `error_metrics.py`, experiment scripts, CSV tables, error plots and results discussion |
-| E | Sparse solver, residual and matrix diagnostics, integration checks | `solver.py`, independent solver comparison, matrix plots, audit records and report integration |
+| A | Model data, exact benchmark, grid, monotone operator and endpoint elimination | `problem.py`, `discretization.py`, foundation tests, problem definition and handoff |
+| B | LCP policy iteration, stopping rule and exercise-threshold extraction | Reviewed `solver.py`, small-grid active-set checks and solver tests |
+| C | Stage 1 exact validation and four-level refinement | Value/threshold error tables, plots, convergence analysis and report section |
+| D | Stage 2 local-volatility and domain-truncation experiments | Refined-grid reference, separate mesh/domain studies, plots and report section |
+| E | Independent verification and report integration | ODE comparison, complementarity/shape checks, tolerance studies and audit records |
 
-Each member writes their own report section and commits through their own account. B and C review each other's boundary derivations. E checks A's assembly and reruns D's experiments; D checks the residual and error-norm definitions used in E's diagnostics. The [team plan](docs/team_plan.md) gives the completion criteria and branch arrangements.
+Each member writes their own report section and commits through their own account. E reviews A and B; A checks B's matrix integration; C and D review each other's comparison grids and error calculations. Completion criteria and branches are in the [team plan](american_put_project/docs/team_plan.md).
 
-### Current status
+### Current progress
 
-A's baseline assembly is complete, with **27 basic tests passed**; see [A's handoff notes](docs/handoff_A.md).
+**A's foundation is complete: 35 tests passed.** It includes scalar/array model data, safe endpoint handling, shared tridiagonal assembly, hand-calculated rows, matrix-sign checks and polynomial consistency tests. The environment, commands and results are in [A's handoff](american_put_project/docs/handoff_A.md).
 
-B's first-order Neumann / Robin implementation and local validation are complete.
+An American-put solver prototype, experiment scripts and numerical records were already in this repository. A's change separates the foundation and preserves the existing solver interface. B–E still need to review and reproduce their assigned parts. The earlier output files do not establish completed student contributions; the group must also complete the official course worksheets and independent review.
 
-- Implemented first-order Neumann and Robin boundary closures in `boundary_first_order.py`, preserving interior equations and Dirichlet corners.
-- Added 11 tests covering N=2/N=4 hand-calculated rows, repeated application, manufactured-solution defects, affine derivative probes, and small integrated solves.
-- **All 38 local tests passed** (27 existing + 11 new). Small-grid errors approximately halve under refinement, consistent with first-order convergence.
-- Completed [boundary derivations](docs/derivation_first_order.md), [precomputation predictions](docs/precomputation_B.md), [handoff notes](docs/handoff_B.md), and [boundary tests](tests/test_first_order.py).
+### Installation and A's checks
 
-B's closure replaces only open-right-edge rows and supports repeated application without accumulating contributions. C's ghost closure, D's error metrics, and E's solver entry point remain to be implemented. C's independent review, formal convergence experiments, and the official course audit remain pending.
-
-`assemble_core` leaves the right-boundary rows and their right-hand-side entries at zero for B and C to fill. This matrix is incomplete until a boundary closure has been applied.
-
-### Installation and checks
-
-Use Python 3.10 or newer. Clone the repository and create a virtual environment:
+Use Python 3.10 or later:
 
 ```bash
 git clone https://github.com/YifanChen-13/PDEproject2.git
@@ -56,92 +54,86 @@ cd PDEproject2
 python -m venv .venv
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe experiments/inspect_core.py --N 8
+.\.venv\Scripts\python.exe -m pip install -r american_put_project/requirements-dev.txt
+cd american_put_project
+..\.venv\Scripts\python.exe -m pytest -q
+..\.venv\Scripts\python.exe inspect_assembly.py
 ```
 
-On macOS / Linux:
+macOS / Linux:
 
 ```bash
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pytest -q
-.venv/bin/python experiments/inspect_core.py --N 8
+.venv/bin/python -m pip install -r american_put_project/requirements-dev.txt
+cd american_put_project
+../.venv/bin/python -m pytest -q
+../.venv/bin/python inspect_assembly.py
 ```
 
-The inspection script reports the number of unknowns, reserved boundary rows and the defect obtained by inserting the manufactured solution into the interior difference equations. This defect measures discrete consistency; it is distinct from the numerical solution error and the linear-solver residual.
+The inspection script checks the model and matrix rows without solving an LCP. Row margins and consistency defects are assembly diagnostics. B–E will review and reproduce the full experiments in the existing `run_project.py` after auditing the solver.
 
-### Repository layout
+### Files and handoff
 
-| Path | Contents |
+| Path under `american_put_project/` | Contents |
 |---|---|
-| `src/pde_bvp/` | Problem data, grid, matrix assembly, boundary closures, solver and error functions |
-| `tests/` | Basic tests; each member adds tests for their own implementation |
-| `experiments/` | Core-assembly inspection; full experiment scripts will be added here |
-| [docs/interfaces.md](docs/interfaces.md) | Mathematical problem, indexing, array shapes and function contracts |
-| [docs/team_plan.md](docs/team_plan.md) | Tasks, completion criteria, branches and review arrangements |
-| [docs/handoff_A.md](docs/handoff_A.md) | A's validation results and the next member's starting steps |
-| [docs/precomputation.md](docs/precomputation.md) | Predictions recorded before running the checks |
-| [docs/ai_audit.md](docs/ai_audit.md) | Scope of AI assistance, completed checks and outstanding course audit work |
+| `problem.py`, `discretization.py` | A's model and operator |
+| `tests/test_foundation.py`, `inspect_assembly.py` | A's tests and assembly inspection |
+| `docs/` | Problem definition, team plan, predictions and handoff |
+| `solver.py`, `run_project.py` | Existing solver prototype and experiment driver |
+| `results/`, `figures/`, `protocols/` | Earlier numerical output and protocol records |
+| `Report_Source.md`, `build_report.py` | Existing report text and generation script |
 
-### Next steps
-
-C independently reviews B's boundary derivation and implements the ghost-point closure, E connects the sparse direct solver, and D develops the error functions. Integrate B's first-order cases through E's solver, then complete the remaining combinations and four-mesh experiments.
-
-The final experiments will report global, right-boundary and interior errors, a scaled algebraic residual, and matrix nonsymmetry. Convergence rates will be calculated from the computed data. The complete coursework also requires the report, independent reviews and the course's five-gate audit.
+B starts with [A's handoff](american_put_project/docs/handoff_A.md), reviews policy iteration and adds independent small-grid LCP tests. C and D can prepare their studies in parallel. Former Poisson files remain in the repository-level `src/pde_bvp/`, `tests/` and `docs/`; the active code and progress for this topic are inside `american_put_project/`.
 
 ---
 
 ## 中文
 
-采用有限差分法求解单位正方形上的 Poisson 方程，比较右边界使用一阶单边差分和 ghost-point 闭合时的误差与收敛表现。两种闭合分别搭配 Neumann 和 Robin 条件，共四组实验；内部离散和问题数据保持一致。
+研究永久美式看跌期权的价值与行权阈值。期权价格高于或等于立即行权收益，行权区域随数值解一起确定。本题的工作目录是 [`american_put_project/`](american_put_project/)。
 
-### 问题设置
+### 模型与方法
+
+令 $`\psi(S)=\max(K-S,0)`$，算子与障碍问题为
 
 $$
--\Delta u=f,\qquad (x,y)\in(0,1)^2.
+\mathcal{L}V=\tfrac12\sigma(S)^2S^2V''+(r-q)SV'-rV,
+\qquad\min\{-\mathcal{L}V,V-\psi\}=0.
 $$
 
-制造解为 $`u^*(x,y)=e^{x+y}`$，对应源项 $`f=-2e^{x+y}`$。左、下、上三条边给定 Dirichlet 数据 $`g=u^*`$，全部四个角点也按 Dirichlet 条件处理。开放右边界 $`x=1,\ 0<y<1`$ 分别使用：
+固定 `K=100`、`r=0.05`，按照题目包第 5.3 节分为两个阶段：
 
-- **Neumann：** $`u_x=q(y)=e^{1+y}`$；
-- **Robin：** $`u_x+2u=r(y)=3e^{1+y}`$。
+| 阶段 | 参数 | 验证方式 |
+|---|---|---|
+| 1：常波动率 | `q=0`、`sigma=0.20` | 对照精确价格和行权阈值 $`S^*=500/7`$ |
+| 2：局部波动率 | `q=0.02`、$`\sigma(S)=0.20[1+0.35\tanh(\log(S/100)/0.40)]`$ | 细网格参考解，并单独研究计算域截断 |
 
-使用步长为 $`h=1/N`$ 的均匀节点网格。`N` 是每个方向的区间数，因此每边有 `N+1` 个节点。节点编号、数组形状和函数约定见 [问题与接口](docs/interfaces.md)。
+在 `[0,Smax]` 上，左端条件为 `V(0)=K`。阶段 1 的主要网格验证采用精确右端值；阶段 2 使用 `V(Smax)=0`，在固定步长下比较 `Smax=300、400、600`。网格加密使用 `h=0.5、0.25、0.125、0.0625`。
+
+单调迎风有限差分得到三对角 M 矩阵。消去两端已知值后，LCP 为 `min(A*v-rhs,v-psi)=0`，其中 `A=-L_h`，由策略迭代求解。模型和差分行见[问题定义](american_put_project/docs/problem_definition.md)。
 
 ### 小组分工
 
-| 成员 | 主要工作 | 交付内容 |
+| 成员 | 工作 | 交付内容 |
 |---|---|---|
-| A | 问题数据、网格与编号、内部五点差分、Dirichlet 消元 | `problem.py`、`grid.py`、`core.py`、基础测试、接口和交接说明 |
-| B | Neumann / Robin 的一阶边界闭合 | `boundary_first_order.py`、边界行推导、边界测试和方法说明 |
-| C | Neumann / Robin 的 ghost-point 闭合 | `boundary_ghost.py`、ghost 消元推导、边界测试和方法说明 |
-| D | 误差范数、四级网格实验、收敛分析与作图 | `error_metrics.py`、实验脚本、CSV 表格、误差图和结果分析 |
-| E | 稀疏求解、残差与矩阵诊断、集成核验 | `solver.py`、独立求解对照、矩阵图、审计记录和报告整合 |
+| A | 模型数据、精确基准、网格、单调算子与端点消元 | `problem.py`、`discretization.py`、基础测试、问题定义和交接说明 |
+| B | LCP 策略迭代、停止准则与行权阈值提取 | 经复核的 `solver.py`、小网格活动集核验和求解器测试 |
+| C | 阶段 1 精确解验证与四级网格加密 | 价格/阈值误差表、图、收敛分析及报告章节 |
+| D | 阶段 2 局部波动率与计算域截断实验 | 细网格参考解、分开的网格/计算域研究、图及报告章节 |
+| E | 独立核验与报告整合 | ODE 对照、互补性和形状检查、容差研究及审计记录 |
 
-每人撰写自己部分的报告，并用自己的账号提交代码。B、C 互查边界推导；E 检查 A 的基础装配并复跑 D 的实验；D 核查 E 的诊断中使用的残差与误差范数定义。完成标准和分支安排见 [分工与协作](docs/team_plan.md)。
+每人撰写自己部分的报告，并用自己的账号提交。E 复核 A、B；A 检查 B 是否正确接入矩阵；C、D 互查比较网格和误差计算。完成标准与分支安排见[五人分工](american_put_project/docs/team_plan.md)。
 
 ### 当前进度
 
-A 的基础装配已经完成，**27 项基础测试通过**，详见 [A 的交接记录](docs/handoff_A.md)。
+**A 的基础工作已完成，35 项测试通过。** 包含标量/数组模型数据、安全的端点处理、共用三对角装配、手算差分行、矩阵符号检查和多项式一致性测试。环境、命令与结果记录在 [A 的交接说明](american_put_project/docs/handoff_A.md)。
 
-B 的 Neumann / Robin 一阶边界闭合已完成实现和本地验证。
+仓库原先已有一份 American put 求解器原型、实验脚本和数值记录。这次将基础模块独立出来，并保留已有求解器接口。B–E 继续复核和重跑自己部分的工作，已有输出不作为组员完成贡献的证明；小组还需完成课程官方表格与独立复核。
 
-- 完成 `boundary_first_order.py` 中 Neumann / Robin 两种一阶边界闭合，保留内部方程和 Dirichlet 角点。
-- 新增 11 项测试，覆盖 N=2/N=4 手算边界行、重复调用、制造解缺陷、线性函数导数和小规模集成求解。
-- **本地 38 项测试全部通过**（原有 27 项 + 新增 11 项）。小网格误差随加密约减半，符合一阶预期。
-- 完成[边界公式推导](docs/derivation_first_order.md)、[计算前预测](docs/precomputation_B.md)、[交接记录](docs/handoff_B.md)和[边界测试](tests/test_first_order.py)。
+### 安装与 A 的检查
 
-B 的实现只替换开放右边界行，重复调用不会累加贡献。C 的 ghost 闭合、D 的误差工具和 E 的求解器入口仍待实现；C 的独立复核、正式收敛实验和课程审计尚待完成。
-
-`assemble_core` 将右边界矩阵行和对应右端项保留为零，交由 B、C 填入。在接入边界闭合之前，这个矩阵尚未装配完整。
-
-### 安装与检查
-
-需要 Python 3.10 或更新版本。先克隆仓库并建立虚拟环境：
+需要 Python 3.10 或更新版本：
 
 ```bash
 git clone https://github.com/YifanChen-13/PDEproject2.git
@@ -152,36 +144,32 @@ python -m venv .venv
 Windows PowerShell：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe experiments/inspect_core.py --N 8
+.\.venv\Scripts\python.exe -m pip install -r american_put_project/requirements-dev.txt
+cd american_put_project
+..\.venv\Scripts\python.exe -m pytest -q
+..\.venv\Scripts\python.exe inspect_assembly.py
 ```
 
 macOS / Linux：
 
 ```bash
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pytest -q
-.venv/bin/python experiments/inspect_core.py --N 8
+.venv/bin/python -m pip install -r american_put_project/requirements-dev.txt
+cd american_put_project
+../.venv/bin/python -m pytest -q
+../.venv/bin/python inspect_assembly.py
 ```
 
-检查脚本输出未知量数、预留边界行数，以及将制造解代入内部差分方程得到的缺陷。这个缺陷用于检查离散一致性，与数值解误差、线性求解残差含义不同。
+检查脚本检查模型与矩阵行，不进行 LCP 求解。行占优余量和一致性缺陷用于检查装配。已有 `run_project.py` 中的完整实验由 B–E 在求解器审计后复核和重跑。
 
-### 文件位置
+### 文件与交接
 
-| 路径 | 内容 |
+| `american_put_project/` 内路径 | 内容 |
 |---|---|
-| `src/pde_bvp/` | 问题数据、网格、矩阵装配、边界闭合、求解与误差函数 |
-| `tests/` | 已实现的基础测试；各成员补充自己部分的测试 |
-| `experiments/` | 基础装配检查；后续加入完整实验脚本 |
-| [docs/interfaces.md](docs/interfaces.md) | 数学问题、节点编号、数组形状和函数约定 |
-| [docs/team_plan.md](docs/team_plan.md) | 五人任务、完成标准、分支与核验安排 |
-| [docs/handoff_A.md](docs/handoff_A.md) | A 的验证结果和下一位成员的接手步骤 |
-| [docs/precomputation.md](docs/precomputation.md) | 运行检查前记录的预期 |
-| [docs/ai_audit.md](docs/ai_audit.md) | AI 辅助范围、已做检查和待完成的课程审计 |
+| `problem.py`、`discretization.py` | A 的模型与算子 |
+| `tests/test_foundation.py`、`inspect_assembly.py` | A 的测试与装配检查 |
+| `docs/` | 问题定义、五人分工、计算前预测和交接说明 |
+| `solver.py`、`run_project.py` | 已有求解器原型和实验入口 |
+| `results/`、`figures/`、`protocols/` | 先前的数值输出和过程记录 |
+| `Report_Source.md`、`build_report.py` | 已有报告正文和生成脚本 |
 
-### 后续安排
-
-C 独立复核 B 的边界推导，并实现 ghost-point 闭合，E 接入稀疏直接求解器，D 完成误差函数。通过 E 的正式求解器接入 B 的一阶闭合，再完成其余组合和四级网格实验。
-
-正式实验将报告全局、右边界和内部误差、经过缩放的代数残差，以及矩阵的非对称性。收敛阶根据实际计算数据求得。完整作业还需完成报告、组员独立复核和课程要求的五关审计。
+B 从 [A 的交接说明](american_put_project/docs/handoff_A.md)开始，复核策略迭代并加入独立的小网格 LCP 测试。C、D 可同时准备实验。之前的 Poisson 文件保留在仓库根目录下的 `src/pde_bvp/`、`tests/` 和 `docs/`；本题代码与进度以 `american_put_project/` 为准。

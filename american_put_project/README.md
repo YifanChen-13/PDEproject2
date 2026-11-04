@@ -1,48 +1,27 @@
-# Perpetual American put: complete computational project
+# Perpetual American Put
 
-Start with **American_Put_Report.pdf**. The report is in English and contains the
-model, derivation, executed experiments, tables, interpretation and limitations.
-Report_Source.md is an editable text version; build_report.py is the editable
-typesetting source. No LaTeX installation is required.
+[English project overview](../README.md#english) | [中文项目说明](../README.md#中文)
 
-## Run
+This directory contains the selected obstacle/free-boundary BVP. The repository overview gives the model, both stages and the five-member division of work.
 
-Use Python 3.10 or later:
+## A's foundation and handoff
 
-```sh
-python -m pip install -r requirements.txt
-python run_project.py
-python build_report.py
+- `problem.py`: payoff, Stage 1 exact data, dividend rates and volatility data.
+- `discretization.py`: monotone tridiagonal -L assembly and Dirichlet elimination.
+- `tests/test_foundation.py`: independent model, hand-row and polynomial checks.
+- `inspect_assembly.py`: assembly diagnostics without an LCP solve.
+- [Problem definition](docs/problem_definition.md), [team plan](docs/team_plan.md) and [A's handoff](docs/handoff_A.md).
+
+A's 35 foundation tests passed. From this directory, with the intended Python environment active:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+python inspect_assembly.py
 ```
 
-The fine references are the most expensive part. Results are deterministic apart
-from timings, timestamps, and floating-point differences between platforms.
-The tested software versions are in results/summary.json.
+## Existing prototype
 
-## Files
+`solver.py`, `run_project.py`, `build_report.py`, `Report_Source.md`, `results/`, `figures/` and `protocols/` were already present. B-E review the solver, reproduce the experiments and write their own report sections. A's validation covers the model and assembly, not the earlier full solver runs. The older checksum file describes that earlier snapshot.
 
-- solver.py: monotone upwind FDM, banded policy solves, independent ODE shooting.
-- run_project.py: complete experiments with assertions and predictive logging.
-- results/: all convergence tables, diagnostics, NPZ solution arrays, summary and run log.
-- figures/: PNG and vector PDF plots.
-- protocols/: custom audit, predictions, reconciliation and AI transparency.
-
-## Reading the numbers
-
-Stage 1 imposes the exact upper boundary so its errors isolate discretisation.
-Stage 2 imposes zero at the upper boundary and separates fixed-domain mesh error
-from domain sensitivity. The threshold is the last contiguous contact node, not
-an interpolated continuous free boundary. Grid reference results are not exact.
-Do not interpret the Smax=600 result as a certified infinite-domain solution.
-
-The detailed diagnostic tables include unsuccessful requested stopping thresholds:
-when a policy repeats at roundoff, actual residual and floating_point_floor are
-recorded, and met_requested_tol is false. These are deliberate transparent records.
-
-## Course records
-
-The exact official worksheets were not supplied. Custom records are included,
-with this limitation stated. They do not replace required official templates or
-independent student verification. No student contribution claims are invented.
-
-The package does not alter or depend on existing files in Desktop/ODE_Project.
+The report-generation script can create `American_Put_Report.pdf` after the results have been reviewed. The generated report is not currently tracked in this repository. Official course worksheets and independent student sign-off remain separate requirements.

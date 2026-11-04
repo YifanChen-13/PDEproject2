@@ -2,7 +2,6 @@
 
 The supplied problem pack requires predictions before each new solve. The run driver
 records a timestamped prediction immediately before every solve, using these rules.
-These records are AI-authored; they are not evidence of a student's prior prediction.
 
 1. Stage 1: S*=500/7=71.4285714286. Upwind drift is first order, so global value
    convergence is expected to approach order one. No second-order claim is made.

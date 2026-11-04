@@ -98,6 +98,3 @@ plots and numerical output before this topic correction. They are a starting
 prototype and earlier records. Their presence does not establish that B-E have
 completed or independently verified their assigned work. A's current foundation
 checks do not certify those earlier solver runs.
-
-The former Poisson work remains in the repository-level `src/pde_bvp/`, `tests/`
-and `docs/` directories. It is not the method or progress record for this topic.

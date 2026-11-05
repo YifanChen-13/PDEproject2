@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 import numpy as np
+from scipy.integrate import trapezoid
 from discretization import assemble
 
 
@@ -36,7 +37,7 @@ def verify(run):
             error = v-sample
             close(np.max(abs(error)), stats['value_Linf'])
             # Independent integration API rather than the driver's manual weights.
-            close(np.sqrt(np.trapz(error**2, s)), stats['value_L2'])
+            close(np.sqrt(trapezoid(error**2, s)), stats['value_L2'])
             for price in [100., 200.]:
                 i = round(price/stats['h'])
                 ir, iff = round(price/(1/128)), round(price/(1/256))
@@ -70,7 +71,7 @@ def verify(run):
         close(v[1600],stats['V100'])
         close(v[3200],stats['V200'])
     with (run/'pointwise_mesh_comparison_D.csv').open('w',newline='') as f:
-        writer=csv.DictWriter(f,fieldnames=list(points[0]))
+        writer=csv.DictWriter(f,fieldnames=list(points[0]), lineterminator='\n')
         writer.writeheader();writer.writerows(points)
     result=dict(checks=checks,status='passed',residual_rechecks=residuals,
                 scope='Automated saved-array verification, not independent human/course audit.')

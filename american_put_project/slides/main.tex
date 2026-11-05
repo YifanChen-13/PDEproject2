@@ -1,0 +1,74 @@
+\documentclass{beamer}
+\usepackage{amsmath,graphicx,booktabs}
+\title{Perpetual American Put}
+\subtitle{A verified finite-difference obstacle solver}
+\author{Coursework team}
+\date{Project 2 technical draft}
+\graphicspath{{../figures/}{../stage2_D_runs/20261105T132543802032Z/figures/}}
+\begin{document}
+\frame{\titlepage}
+\begin{frame}{The decision to exercise creates an obstacle}
+\begin{itemize}
+\item Exercise gives $(K-S)^+$ immediately, continuation may be more valuable.
+\item The stationary one-dimensional problem is $\min(-\mathcal L V,V-\psi)=0$.
+\item We seek both the value and the exercise threshold.
+\end{itemize}
+\end{frame}
+\begin{frame}{Monotone differences preserve the obstacle structure}
+\begin{itemize}
+\item Upwind drift produces a tridiagonal M-matrix.
+\item Policy iteration alternates exercise and continuation rows.
+\item The stopping test measures complementarity residual.
+\item The contact node uses price-gap tolerance $10^{-7}$.
+\end{itemize}
+\end{frame}
+\begin{frame}{Exact prices converge at roughly first order}
+\begin{itemize}
+\item Stage 1 exact threshold is $500/7$.
+\item Four meshes reduce maximum price error from 0.05847 to 0.00736.
+\item Last contact node on the finest mesh is 71.4375.
+\item Nodal threshold errors need not decrease monotonically.
+\end{itemize}
+\end{frame}
+\begin{frame}{Stage 2 converges on a fixed truncated domain}
+\begin{itemize}
+\item Local volatility and $q=0.02$ produce a genuinely numerical case.
+\item At $L=600$, finest mesh versus fine-grid difference is 0.004604.
+\item A second reference changes the price comparison by $3.28\cdot10^{-4}$.
+\item Fine-reference residuals reach a reported floating-point floor.
+\end{itemize}
+\end{frame}
+\begin{frame}{The outer boundary changes the answer materially}
+\begin{center}\begin{tabular}{rrr}\toprule
+$L$ & numerical $V(100)$ & collocation $V(100)$\\\midrule
+300 & 15.4560 & 15.4512\\
+400 & 15.8310 & 15.8260\\
+600 & 16.0653 & 16.0601\\\bottomrule
+\end{tabular}\end{center}
+Domain enlargement and mesh refinement measure different sensitivities.
+\end{frame}
+\begin{frame}{Independent checks support the finite-domain result}
+\begin{itemize}
+\item Analytic Stage 1 solution checks price and threshold.
+\item Exhaustive small-grid active sets check policy iteration.
+\item Shooting and adaptive collocation agree for the same domain.
+\item Shape, complementarity and tolerance diagnostics are recorded.
+\end{itemize}
+\end{frame}
+\begin{frame}{Two solvers agree at a common residual target}
+\begin{itemize}
+\item Policy iteration and projected SOR use the same LCP and payoff initialisation.
+\item At $h=5$ and $2.5$, maximum solution differences are below $4\cdot10^{-8}$.
+\item Policy systems use compiled linear algebra, while PSOR uses Python sweeps.
+\item Timings include the implementation and platform effects.
+\end{itemize}
+\end{frame}
+\begin{frame}{Reproducibility and discussion}
+\begin{itemize}
+\item Reproduce with the repository README and inspect saved numerical evidence.
+\item Grid and tolerance studies alone cannot remove truncation bias.
+\item Explain stencil signs, complementarity and threshold extraction.
+\item Complete the student audit, individual contributions and presentation rehearsal.
+\end{itemize}
+\end{frame}
+\end{document}

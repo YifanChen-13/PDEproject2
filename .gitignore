@@ -9,3 +9,5 @@ dist/
 .vscode/
 .DS_Store
 Thumbs.db
+
+american_put_project/reproduction_runs/

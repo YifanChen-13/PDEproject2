@@ -44,14 +44,15 @@ def norms(s, error):
 def csvout(path, rows):
     keys = list(dict.fromkeys(k for r in rows for k in r))
     with path.open('w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=keys)
+        writer = csv.DictWriter(f, fieldnames=keys, lineterminator='\n')
         writer.writeheader()
         writer.writerows(rows)
 
 
 def main():
     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
-    out = ROOT / 'stage2_D_runs' / stamp
+    output_root = Path(os.environ.get('PDE_STAGE2_OUTPUT_ROOT', ROOT / 'stage2_D_runs'))
+    out = output_root.resolve() / stamp
     out.mkdir(parents=True, exist_ok=False)
     figdir = out / 'figures'
     figdir.mkdir()

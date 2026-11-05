@@ -42,7 +42,9 @@ Each member writes their own report section and commits through their own accoun
 
 **A's foundation is complete: 35 tests passed.** It includes scalar/array model data, safe endpoint handling, shared tridiagonal assembly, hand-calculated rows, matrix-sign checks and polynomial consistency tests. The environment, commands and results are in [A's handoff](american_put_project/docs/handoff_A.md).
 
-An American-put solver prototype, experiment scripts and numerical records were already in this repository. A's change separates the foundation and preserves the existing solver interface. B–E still need to review and reproduce their assigned parts. The earlier output files do not establish completed student contributions; the group must also complete the official course worksheets and independent review.
+**B's LCP solver review and local validation are complete: 60 tests passed (35 foundation + 25 solver tests).** B added independent exhaustive active-set checks on tiny grids, explicit floating-point-floor status, control/failure tests, and contiguous contact-threshold extraction. See [B's derivation](american_put_project/docs/derivation_B.md), [predictions](american_put_project/docs/precomputation_B.md), and [handoff](american_put_project/docs/handoff_B.md). A/E's independent review and the official course audit remain pending; C/D's formal experiments are separate.
+
+An American-put solver prototype, experiment scripts and numerical records were already in this repository. A's change separates the foundation and preserves the existing solver interface. C–E still need to review and reproduce their assigned parts; B awaits independent review. The earlier output files do not establish completed student contributions; the group must also complete the official course worksheets and independent review.
 
 ### Installation and A's checks
 
@@ -85,7 +87,7 @@ The inspection script checks the model and matrix rows without solving an LCP. R
 | `results/`, `figures/`, `protocols/` | Earlier numerical output and protocol records |
 | `Report_Source.md`, `build_report.py` | Existing report text and generation script |
 
-B starts with [A's handoff](american_put_project/docs/handoff_A.md), reviews policy iteration and adds independent small-grid LCP tests. C and D can prepare their studies in parallel.
+B's implementation is ready for A/E's independent review. See [B's handoff](american_put_project/docs/handoff_B.md) before using solver outputs. C and D can prepare their studies in parallel.
 
 ---
 
@@ -129,7 +131,9 @@ $$
 
 **A 的基础工作已完成，35 项测试通过。** 包含标量/数组模型数据、安全的端点处理、共用三对角装配、手算差分行、矩阵符号检查和多项式一致性测试。环境、命令与结果记录在 [A 的交接说明](american_put_project/docs/handoff_A.md)。
 
-仓库原先已有一份 American put 求解器原型、实验脚本和数值记录。这次将基础模块独立出来，并保留已有求解器接口。B–E 继续复核和重跑自己部分的工作，已有输出不作为组员完成贡献的证明；小组还需完成课程官方表格与独立复核。
+**B 的 LCP 求解器复核与本地验证已完成：60 项测试通过（35 项基础测试 + 25 项求解器测试）。** 已补充小网格全活动集独立枚举、浮点下限状态、控制参数与失败路径测试，以及连续接触区行权阈值提取。详见 [B 的推导](american_put_project/docs/derivation_B.md)、[计算前预测](american_put_project/docs/precomputation_B.md)和[交接说明](american_put_project/docs/handoff_B.md)。A/E 的独立复核、官方课程审计尚待完成；C/D 的正式实验另行开展。
+
+仓库原先已有一份 American put 求解器原型、实验脚本和数值记录。这次将基础模块独立出来，并保留已有求解器接口。C–E 继续复核和重跑自己部分的工作，B 等待独立复核，已有输出不作为组员完成贡献的证明；小组还需完成课程官方表格与独立复核。
 
 ### 安装与 A 的检查
 
@@ -172,4 +176,4 @@ cd american_put_project
 | `results/`、`figures/`、`protocols/` | 先前的数值输出和过程记录 |
 | `Report_Source.md`、`build_report.py` | 已有报告正文和生成脚本 |
 
-B 从 [A 的交接说明](american_put_project/docs/handoff_A.md)开始，复核策略迭代并加入独立的小网格 LCP 测试。C、D 可同时准备实验。
+B 的实现已就绪，交由 A/E 独立复核；使用求解结果前请阅读 [B 的交接说明](american_put_project/docs/handoff_B.md)。C、D 可同时准备实验。

@@ -1,5 +1,7 @@
 # A's handoff: Perpetual American put
 
+> Historical planning or handoff record. For current commands and status, see the repository README.
+
 Date: 2026-11-04. Next owner: B. E reviews the foundation independently; C and D
 can prepare their experiment definitions in parallel.
 

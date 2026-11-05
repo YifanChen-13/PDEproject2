@@ -1,5 +1,7 @@
 # B handoff: reviewed LCP solver
 
+> Historical planning or handoff record. For current commands and status, see the repository README.
+
 Date: 2026-11-05. Topic: Problem Pack 5.3, perpetual American put.
 
 ## Contribution and scope

@@ -1,10 +1,14 @@
 import csv
+import os
 from pathlib import Path
 
 import numpy as np
 
 from problem import EXACT_STAR, exact
 from solver import solve
+
+OUTPUT = Path(os.environ.get('PDE_STAGE1_OUTPUT', Path(__file__).parent))
+OUTPUT.mkdir(parents=True, exist_ok=True)
 
 rows = []
 previous_error = None
@@ -39,9 +43,9 @@ for h in [0.5, 0.25, 0.125, 0.0625]:
         f"order={order_text}  tolerance met={stats['met_requested_tol']}"
     )
 
-output = Path(__file__).with_name("stage1_validation_results.csv")
+output = OUTPUT / "stage1_validation_results.csv"
 with output.open("w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+    writer = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator='\n')
     writer.writeheader()
     writer.writerows(rows)
 
@@ -76,7 +80,7 @@ for ax in (ax1, ax2):
     ax.grid(alpha=0.25)
 
 fig.tight_layout()
-figure_path = Path(__file__).with_name("stage1_value_comparison.png")
+figure_path = OUTPUT / "stage1_value_comparison.png"
 fig.savefig(figure_path, dpi=300, bbox_inches="tight")
 plt.close(fig)
 print(f"Saved figure: {figure_path}")

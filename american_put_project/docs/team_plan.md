@@ -1,5 +1,7 @@
 # Perpetual American put: five-member plan
 
+> Historical planning or handoff record. For current commands and status, see the repository README.
+
 The selected topic is Problem Pack, Section 5.3, pages 8-9. The active working
 directory is `american_put_project/`. Each member writes their own report section,
 records actual checks and commits through their own account. A-E are role labels;

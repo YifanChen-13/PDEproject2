@@ -1,7 +1,7 @@
 """Build the report from recorded results (no manually entered numerical results)."""
 import os
 os.environ.setdefault('MPLCONFIGDIR','/tmp/american_put_matplotlib')
-import json,textwrap
+import argparse,json,textwrap
 from pathlib import Path
 import numpy as np
 import matplotlib
@@ -9,7 +9,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-ROOT=Path(__file__).resolve().parent
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--input-root', type=Path, default=Path(__file__).resolve().parent,
+                    help='Directory containing results/ and figures/')
+ROOT = parser.parse_args().input_root.resolve()
 D=json.loads((ROOT/'results/summary.json').read_text())
 MAN=[]; PAGES=[]
 plt.rcParams.update({'font.family':'DejaVu Sans','font.size':10,'mathtext.fontset':'dejavusans'})

@@ -1,7 +1,7 @@
 """Reproduce every numerical table/figure with Python + NumPy/SciPy/Matplotlib."""
 import os
 os.environ.setdefault('MPLCONFIGDIR','/tmp/american_put_matplotlib')
-import csv, json, itertools, datetime, platform, sys
+import argparse, csv, json, itertools, datetime, platform, sys
 from pathlib import Path
 import numpy as np
 import scipy
@@ -12,9 +12,7 @@ from solver import solve,assemble,action,exact,EXACT_STAR,continuous_reference
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/'results'; FIG=ROOT/'figures'; LOG=ROOT/'protocols'
-for p in (OUT,FIG,LOG): p.mkdir(exist_ok=True)
 PRED=LOG/'prediction_log.jsonl'
-PRED.write_text('')
 
 def run(label,**kw):
     rec=dict(timestamp_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -31,7 +29,7 @@ def run(label,**kw):
 def csvout(name,rows):
     keys=list(dict.fromkeys(k for r in rows for k in r))
     with (OUT/name).open('w',newline='') as f:
-        w=csv.DictWriter(f,fieldnames=keys);w.writeheader();w.writerows(rows)
+        w=csv.DictWriter(f,fieldnames=keys, lineterminator='\n');w.writeheader();w.writerows(rows)
 
 def ode_run(L,stage=2):
     with PRED.open('a') as f:
@@ -74,6 +72,16 @@ def gates():
         official_worksheet_available=False)
 
 def main():
+    global OUT, FIG, LOG, PRED
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output-dir', type=Path, help='Write all generated results to this directory')
+    args = parser.parse_args()
+    if args.output_dir is not None:
+        output = args.output_dir.resolve()
+        OUT, FIG, LOG = output/'results', output/'figures', output/'protocols'
+    for directory in (OUT, FIG, LOG):
+        directory.mkdir(parents=True, exist_ok=True)
+    PRED = LOG / ('prediction_log_' + datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ') + '.jsonl')
     audit=gates()
     stage1=[]; hs=[.5,.25,.125,.0625]
     for h in hs:

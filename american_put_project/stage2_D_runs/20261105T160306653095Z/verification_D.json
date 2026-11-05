@@ -1,0 +1,43 @@
+{
+  "checks": 50,
+  "status": "passed",
+  "residual_rechecks": [
+    {
+      "experiment": "mesh_h0.5",
+      "reported_float64_residual": 4.704148182099743e-11,
+      "recomputed_residual": 4.704148182099743e-11,
+      "precision_epsilon": 2.220446049250313e-16
+    },
+    {
+      "experiment": "mesh_h0.25",
+      "reported_float64_residual": 3.872457909892546e-11,
+      "recomputed_residual": 3.872457909892546e-11,
+      "precision_epsilon": 2.220446049250313e-16
+    },
+    {
+      "experiment": "mesh_h0.125",
+      "reported_float64_residual": 1.7577406197233358e-10,
+      "recomputed_residual": 1.7577406197233358e-10,
+      "precision_epsilon": 2.220446049250313e-16
+    },
+    {
+      "experiment": "mesh_h0.0625",
+      "reported_float64_residual": 9.557865610076988e-10,
+      "recomputed_residual": 9.557865610076988e-10,
+      "precision_epsilon": 2.220446049250313e-16
+    },
+    {
+      "experiment": "reference_h0.0078125",
+      "reported_float64_residual": 2.9802322387695312e-08,
+      "recomputed_residual": 2.9802322387695312e-08,
+      "precision_epsilon": 2.220446049250313e-16
+    },
+    {
+      "experiment": "reference_h0.00390625",
+      "reported_float64_residual": 1.1920928955078125e-07,
+      "recomputed_residual": 1.1920928955078125e-07,
+      "precision_epsilon": 2.220446049250313e-16
+    }
+  ],
+  "scope": "Automated saved-array verification, not independent human/course audit."
+}

@@ -1,74 +1,408 @@
-\documentclass{beamer}
-\usepackage{amsmath,graphicx,booktabs}
+% Compile from this directory with: tectonic main.tex
+% Speaking times below give ten minutes in total, followed by three minutes of Q&A.
+% The plotted coordinates and displayed results are rounded from the repository
+% data files named on each frame. See the report for full tables and definitions.
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage{amsmath,booktabs,pgfplots}
+\pgfplotsset{compat=1.18}
+
+\definecolor{Ink}{HTML}{152B3A}
+\definecolor{Muted}{HTML}{425968}
+\definecolor{Teal}{HTML}{00756E}
+\definecolor{Rust}{HTML}{A84323}
+\definecolor{Paper}{HTML}{F8FAF8}
+\definecolor{Tint}{HTML}{E8F2EE}
+\definecolor{Rule}{HTML}{C5D7D2}
+
+\setbeamercolor{normal text}{fg=Ink,bg=Paper}
+\setbeamercolor{structure}{fg=Teal}
+\setbeamercolor{frametitle}{fg=Ink,bg=Paper}
+\setbeamercolor{footline}{fg=Muted,bg=Paper}
+\setbeamercolor{panel}{fg=Ink,bg=Tint}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamersize{text margin left=8mm,text margin right=8mm}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{frametitle}{%
+  \vspace{2mm}\nointerlineskip
+  \begin{beamercolorbox}[wd=\textwidth]{frametitle}
+    {\footnotesize\bfseries\color{Teal}\insertsectionhead\par}
+    \vspace{1mm}\usebeamerfont{frametitle}\insertframetitle\strut
+  \end{beamercolorbox}
+  \vspace{1mm}
+}
+\setbeamertemplate{footline}{%
+  \begin{beamercolorbox}[wd=\paperwidth,ht=3mm,dp=2mm,leftskip=8mm,rightskip=8mm]{footline}
+    \scriptsize\strut PROJECT 2 \enspace / \enspace PERPETUAL AMERICAN PUT\hfill
+    \insertframenumber\,/\,\inserttotalframenumber
+  \end{beamercolorbox}
+}
+
+\newcommand{\panel}[1]{%
+  \begin{beamercolorbox}[wd=\linewidth,sep=2.2mm]{panel}#1\end{beamercolorbox}}
+\newcommand{\labeltext}[1]{{\footnotesize\bfseries\color{Teal}#1}}
+\newcommand{\sourcefile}[1]{\par\vfill{\scriptsize\color{Muted}#1\par}}
+\newcommand{\norm}[1]{\lVert #1\rVert_{\infty}}
+\pgfplotsset{
+  slide axis/.style={
+    axis line style={Rule},
+    tick style={Rule},
+    ticklabel style={font=\scriptsize,text=Muted},
+    label style={font=\small,text=Ink},
+    ymajorgrids, grid style={Rule!55},
+    legend style={draw=none,fill=none,font=\scriptsize,legend cell align=left},
+    every axis plot/.append style={line width=1.15pt},
+    unbounded coords=jump
+  }
+}
+
 \title{Perpetual American Put}
-\subtitle{A verified finite-difference obstacle solver}
-\author{Coursework team}
-\date{Project 2 technical draft}
-\graphicspath{{../figures/}{../stage2_D_runs/20261105T132543802032Z/figures/}}
+\author{Project 2 technical presentation}
+\date{Numerical Analysis of ODEs and PDEs}
+
 \begin{document}
-\frame{\titlepage}
-\begin{frame}{The decision to exercise creates an obstacle}
-\begin{itemize}
-\item Exercise gives $(K-S)^+$ immediately, continuation may be more valuable.
-\item The stationary one-dimensional problem is $\min(-\mathcal L V,V-\psi)=0$.
-\item We seek both the value and the exercise threshold.
-\end{itemize}
+
+% 0:00–0:45. Define the two outputs and preview the numerical finding.
+\begin{frame}[plain]
+  \vspace{3mm}
+  {\small\bfseries\color{Teal} PROJECT 2\enspace /\enspace NUMERICAL ANALYSIS OF ODEs AND PDEs\par}
+  \vspace{5mm}
+  {\fontsize{34}{38}\selectfont\bfseries\inserttitle\par}
+  \vspace{2mm}
+  {\large How much is the right to sell at a fixed price worth,\par
+  and when is it best to exercise?\par}
+  \vfill
+  \panel{%
+    \begin{columns}[T,onlytextwidth]
+      \begin{column}{.18\linewidth}
+        {\LARGE\bfseries\color{Teal}$51\times$\par}
+      \end{column}
+      \begin{column}{.77\linewidth}
+        Moving the artificial boundary from 400 to 600 changes the local-volatility
+        price at $S=100$ by about 51 times the finest-grid difference to its reference.
+      \end{column}
+    \end{columns}
+  }
+  \vspace{3mm}
+  {\footnotesize\color{Muted}Technical presentation\enspace $\cdot$\enspace 10 minutes + 3 minutes for questions\par}
 \end{frame}
-\begin{frame}{Monotone differences preserve the obstacle structure}
-\begin{itemize}
-\item Upwind drift produces a tridiagonal M-matrix.
-\item Policy iteration alternates exercise and continuation rows.
-\item The stopping test measures complementarity residual.
-\item The contact node uses price-gap tolerance $10^{-7}$.
-\end{itemize}
+
+\section{Model}
+
+% 0:45–1:50. Explain the obstacle and why continuation is a stationary ODE.
+\begin{frame}[t]{The option value meets the payoff in the exercise region}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.45\textwidth}
+      Exercise pays $\psi(S)=(100-S)^+$ now. Waiting is optimal
+      where $V(S)>\psi(S)$.
+      \[
+        \boxed{\min\{-\mathcal L V,\,V-\psi\}=0}
+      \]
+      \[
+        \mathcal L V=\tfrac12\sigma(S)^2 S^2 V''
+                   +(r-q)SV'-rV.
+      \]
+      \small
+      Both stages use $K=100$ and $r=0.05$. With no expiry,
+      continuation is a second-order ODE.
+      At the free boundary, $V(S^*)=100-S^*$ and $V'(S^*)=-1$.
+    \end{column}
+    \begin{column}{.51\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[slide axis,width=\linewidth,height=4.6cm,
+          xlabel={Share price $S$},ylabel={Value},xmin=0,xmax=200,ymin=0,ymax=103,
+          xtick={0,50,100,150,200},ytick={0,25,50,75,100},legend pos=north east]
+          \addplot[Teal] coordinates {
+            (0,100) (20,80) (40,60) (60,40) (69.25,30.75)
+            (72,28.235678) (75,25.950580) (80,22.932112)
+            (85,20.617178) (90,18.787313) (95,17.301189)
+            (100,16.065282) (105,15.016313) (110,14.110497)
+            (120,12.612997) (130,11.412405) (140,10.418279)
+            (150,9.575503) (170,8.211724) (190,7.145045) (200,6.691671)
+          };
+          \addlegendentry{Computed value}
+          \addplot[Rust,dashed] coordinates {(0,100) (100,0) (200,0)};
+          \addlegendentry{Payoff}
+          \draw[dotted,Ink!70] (axis cs:69.25,0) -- (axis cs:69.25,30.75);
+        \end{axis}
+      \end{tikzpicture}
+      \par{\footnotesize The dotted line marks the last contact node.}
+    \end{column}
+  \end{columns}
+  \sourcefile{Stage 2, $L=600$, $h=0.0625$. \textbf{Evidence} \enspace \texttt{mesh\_h0.0625.npz} in the saved Stage 2 run.}
 \end{frame}
-\begin{frame}{Exact prices converge at roughly first order}
-\begin{itemize}
-\item Stage 1 exact threshold is $500/7$.
-\item Four meshes reduce maximum price error from 0.05847 to 0.00736.
-\item Last contact node on the finest mesh is 71.4375.
-\item Nodal threshold errors need not decrease monotonically.
-\end{itemize}
+
+\section{Discretisation}
+
+% 1:50–2:55. Explain the signs and the effect of eliminating boundary data.
+\begin{frame}[t]{One-sided drift preserves the matrix signs}
+  On $S_i=ih$ in $[0,L]$, centre the diffusion and use a monotone
+  one-sided difference for the drift. Both stages have $b_i=(r-q)S_i\ge0$.
+  \[
+    \begin{aligned}
+      (AV)_i &= \ell_i V_{i-1}+c_i V_i+u_iV_{i+1},
+         &d_i&=\tfrac12\sigma(S_i)^2 S_i^2,\\
+      \ell_i&=-d_i/h^2,
+         &u_i&=-d_i/h^2-b_i/h,\\
+      c_i&=2d_i/h^2+b_i/h+r,
+         &c_i-|\ell_i|-|u_i|&=r>0.
+    \end{aligned}
+  \]
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.48\textwidth}
+      \panel{\labeltext{MATRIX STRUCTURE}\par\smallskip
+      Nonpositive off-diagonals and strict row dominance give a
+      tridiagonal M-matrix.}
+    \end{column}
+    \begin{column}{.48\textwidth}
+      \panel{\labeltext{BOUNDARY DATA}\par\smallskip
+      Move the prescribed endpoint terms into $f$.
+      In Stage 2, $V(0)=100$ and $V(L)=0$.}
+    \end{column}
+  \end{columns}
+  \sourcefile{\textbf{Evidence} \enspace \texttt{discretization.py} and the independent stencil checks in \texttt{tests/test\_foundation.py}.}
 \end{frame}
-\begin{frame}{Stage 2 converges on a fixed truncated domain}
-\begin{itemize}
-\item Local volatility and $q=0.02$ produce a genuinely numerical case.
-\item At $L=600$, finest mesh versus fine-grid difference is 0.004604.
-\item A second reference changes the price comparison by $3.28\cdot10^{-4}$.
-\item Fine-reference residuals reach a reported floating-point floor.
-\end{itemize}
+
+% 2:55–3:55. Describe policy iteration and identify precisely what S_h records.
+\begin{frame}[t]{Policy iteration solves for both decisions}
+  On the interior, the linear complementarity problem is
+  \[
+     a=Av-f\ge0,\qquad g=v-\psi\ge0,\qquad \min(a,g)=0
+     \quad\text{componentwise}.
+  \]
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.48\textwidth}
+      \panel{\labeltext{EXERCISE IF $g_i<a_i$}\par\smallskip
+        Replace the row with $v_i=\psi_i$.}
+    \end{column}
+    \begin{column}{.48\textwidth}
+      \panel{\labeltext{CONTINUE OTHERWISE}\par\smallskip
+        Keep the row $(Av)_i=f_i$.}
+    \end{column}
+  \end{columns}
+  \medskip
+  Start from the payoff. Solve each selected banded system and
+  stop when $\rho=\norm{\min(a,g)}$ meets the tolerance.
+  A repeated policy near roundoff is recorded as a floating-point floor.
+  \par\medskip
+  \small
+  Report $S_h^*$ as the last node of the contact interval attached to zero.
+  Contact uses $|V_i-\psi_i|\le10^{-7}$ with $S_i<100$.
+  \sourcefile{\textbf{Evidence} \enspace \texttt{solver.py}.}
 \end{frame}
-\begin{frame}{The outer boundary changes the answer materially}
-\begin{center}\begin{tabular}{rrr}\toprule
-$L$ & numerical $V(100)$ & collocation $V(100)$\\\midrule
-300 & 15.4560 & 15.4512\\
-400 & 15.8310 & 15.8260\\
-600 & 16.0653 & 16.0601\\\bottomrule
-\end{tabular}\end{center}
-Domain enlargement and mesh refinement measure different sensitivities.
+
+\section{Verification}
+
+% 3:55–5:00. Show exact price and boundary validation and explain the nonmonotone errors.
+\begin{frame}[t]{The exact case confirms first-order price convergence}
+  Stage 1 uses $q=0$, $\sigma=0.20$ and the exact value at $L=400$.
+  The decaying exponent is $-2.5$ and $S^*=500/7$.
+  \medskip
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.49\textwidth}
+      \begin{tikzpicture}
+        \begin{axis}[slide axis,width=.96\linewidth,height=4.0cm,
+          xlabel={Mesh spacing $h$ (coarse to fine)},ylabel={Max price error},
+          xmin=-0.2,xmax=3.2,ymode=log,log basis y=2,
+          xtick={0,1,2,3},xticklabels={0.5,0.25,0.125,0.0625},
+          ytick={0.0075,0.015,0.03,0.06},yticklabels={.0075,.015,.03,.06}]
+          \addplot[Teal,mark=*] coordinates {
+            (0,0.0584731585) (1,0.0293476653) (2,0.0147349606) (3,0.00736252219)
+          };
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{.47\textwidth}
+      \labeltext{NODAL THRESHOLD ERROR}\par\smallskip
+      {\small
+      \renewcommand{\arraystretch}{1.13}
+      \begin{tabular}{@{}rrr@{}}
+        \toprule
+        $h$ & $S_h^*$ & $|S_h^*-S^*|$ \\
+        \midrule
+        0.5    & 71.5000 & 0.07143 \\
+        0.25   & 71.2500 & 0.17857 \\
+        0.125  & 71.3750 & 0.05357 \\
+        0.0625 & 71.4375 & 0.00893 \\
+        \bottomrule
+      \end{tabular}\par}
+      \smallskip
+      \small Price error roughly halves at each refinement
+      ($p=0.996$ from a log--log fit).
+    \end{column}
+  \end{columns}
+  \sourcefile{\textbf{Evidence} \enspace \texttt{stage1\_validation\_results.csv}.}
 \end{frame}
-\begin{frame}{Independent checks support the finite-domain result}
-\begin{itemize}
-\item Analytic Stage 1 solution checks price and threshold.
-\item Exhaustive small-grid active sets check policy iteration.
-\item Shooting and adaptive collocation agree for the same domain.
-\item Shape, complementarity and tolerance diagnostics are recorded.
-\end{itemize}
+
+% 5:00–6:05. Keep the fixed-domain study distinct from the domain sweep.
+\begin{frame}[t]{Local-volatility prices converge on a fixed domain}
+  \small
+  Stage 2 sets $q=0.02$ and
+  $\sigma(S)=0.20\bigl[1+0.35\tanh\bigl(\log(S/100)/0.40\bigr)\bigr]$.
+  The mesh study fixes $L=600$ and $V(L)=0$.
+  \medskip
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.52\textwidth}
+      \begin{tikzpicture}
+        \begin{axis}[slide axis,width=\linewidth,height=4.25cm,
+          xlabel={Mesh spacing $h$ (coarse to fine)},ylabel={Max price difference},
+          xmin=-0.2,xmax=3.2,ymin=.004,ymax=.079,ymode=log,log basis y=2,
+          xtick={0,1,2,3},xticklabels={0.5,0.25,0.125,0.0625},
+          ytick={0.005,0.01,0.02,0.04},yticklabels={.005,.01,.02,.04},
+          legend pos=north east]
+          \addplot[Teal,mark=*] coordinates {
+            (0,.04121838) (1,.02043659) (2,.00987480) (3,.00460369)
+          };
+          \addlegendentry{Fine grid $h=1/128$}
+          \addplot[Rust,dashed,mark=square*,mark size=1.5pt] coordinates {
+            (0,.04187515) (1,.02109338) (2,.01053159) (3,.00526048)
+          };
+          \addlegendentry{ODE shooting}
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{.44\textwidth}
+      \labeltext{TWO COMPARISONS, SAME DOMAIN}\par\smallskip
+      Fitted price order is 1.054 against the fine grid and 0.998 against shooting.
+      \medskip\par
+      Refining the reference to $h=1/256$ changes its values by up to
+      $3.28\times10^{-4}$, about 7\% of the finest study difference.
+      \medskip\par
+      The last three study grids report the same contact node, $69.25$.
+    \end{column}
+  \end{columns}
+  \sourcefile{\textbf{Evidence} \enspace \texttt{mesh\_convergence\_D.csv}, \texttt{reference\_check\_D.csv} and \texttt{results/stage2\_convergence.csv}.}
 \end{frame}
-\begin{frame}{Two solvers agree at a common residual target}
-\begin{itemize}
-\item Policy iteration and projected SOR use the same LCP and payoff initialisation.
-\item At $h=5$ and $2.5$, maximum solution differences are below $4\cdot10^{-8}$.
-\item Policy systems use compiled linear algebra, while PSOR uses Python sweeps.
-\item Timings include the implementation and platform effects.
-\end{itemize}
+
+% 6:05–7:10. Separate algebraic evidence, independent price validation and checks on shape.
+\begin{frame}[t]{Tightening the solver tolerance leaves prices unchanged}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.49\textwidth}
+      \labeltext{GRID $L=600,\ h=0.0625$}\par\smallskip
+      {\small
+      \renewcommand{\arraystretch}{1.06}
+      \begin{tabular}{@{}rrl@{}}
+        \toprule
+        Requested & Actual $\rho$ & Status \\
+        \midrule
+        $10^{-6}$ & $9.56\times10^{-10}$ & Met \\
+        $10^{-8}$ & $9.56\times10^{-10}$ & Met \\
+        $10^{-10}$ & $9.56\times10^{-10}$ & Floor \\
+        \bottomrule
+      \end{tabular}\par}
+      \smallskip
+      \small All three price vectors agree exactly.\par
+      Scaled backward residual $7.31\times10^{-12}$.\par
+      $\min a=-4.66\times10^{-10}$.\par
+      $\min g=-9.56\times10^{-10}$.
+    \end{column}
+    \begin{column}{.47\textwidth}
+      \labeltext{CROSS-CHECKS}\par\smallskip
+      \small
+      \begin{itemize}
+        \item Tiny-grid active-set enumeration checks the policy solver.
+        \item Collocation and shooting agree within $10^{-6}$ for
+              $V(100)$ and $S^*$ on all three domains.
+        \item Diagnostics check price bounds, monotonicity,
+              convexity and contact connectivity.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \smallskip
+  \panel{\small Both reference solves stop above the $10^{-8}$ target,
+    at $2.98\times10^{-8}$ and $1.19\times10^{-7}$.}
+  \sourcefile{\textbf{Evidence} \enspace \texttt{solver\_tolerance\_D.csv}, \texttt{reference\_check\_D.csv}, \texttt{collocation.json} and \texttt{tests/test\_solver.py}.}
 \end{frame}
-\begin{frame}{Reproducibility and discussion}
-\begin{itemize}
-\item Reproduce with the repository README and inspect saved numerical evidence.
-\item Grid and tolerance studies alone cannot remove truncation bias.
-\item Explain stencil signs, complementarity and threshold extraction.
-\item Complete the student audit, individual contributions and presentation rehearsal.
-\end{itemize}
+
+\section{Experiments}
+
+% 7:10–8:20. Contrast a domain perturbation with a grid perturbation at the same S.
+\begin{frame}[t]{Moving the outer boundary changes the price far more}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.50\textwidth}
+      \begin{tikzpicture}
+        \begin{axis}[slide axis,width=\linewidth,height=4.4cm,
+          xlabel={Outer boundary $L$},ylabel={Price at $S=100$},
+          xmin=270,xmax=630,ymin=15.35,ymax=16.28,
+          xtick={300,400,600},ytick={15.4,15.6,15.8,16.0,16.2},
+          legend pos=north west]
+          \addplot[Teal,mark=*] coordinates {(300,15.456044) (400,15.831017) (600,16.065282)};
+          \addlegendentry{FDM, $h=0.0625$}
+          \addplot[Rust,dashed,mark=square*,mark size=1.5pt] coordinates {
+            (300,15.451228) (400,15.825975) (600,16.060076)
+          };
+          \addlegendentry{Continuous collocation}
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{.46\textwidth}
+      \labeltext{TWO CHANGES AT $S=100$}\par\smallskip
+      {\small
+      \begin{tabular}{@{}lr@{}}
+        \toprule
+        $L:400\to600$ (fixed $h$) & \bfseries 0.23427 \\
+        $h:0.0625\to1/128$ (fixed $L$) & \bfseries 0.00456 \\
+        \bottomrule
+      \end{tabular}\par}
+      \medskip\par
+      \small The contact node drops from $69.6875$ at $L=300$ to
+      $69.2500$ at $L=600$. Independent continuous prices move in the same direction.
+      \medskip\par
+      The largest domain is a comparison baseline. Bounding the infinite-domain
+      error requires a separate tail analysis.
+    \end{column}
+  \end{columns}
+  \sourcefile{\textbf{Evidence} \enspace \texttt{domain\_sensitivity\_D.csv}, \texttt{pointwise\_mesh\_comparison\_D.csv} and \texttt{collocation.json}.}
+\end{frame}
+
+% 8:20–9:15. State the matched benchmark and qualify the timing result.
+\begin{frame}[t]{The solvers agree at a common residual target}
+  Stage 2 on $[0,600]$. Both solvers use the same matrix, zero endpoint,
+  payoff initialisation and absolute residual target $10^{-8}$.
+  Projected SOR uses $\omega=1.2$.
+  \medskip
+  \begin{center}
+    \renewcommand{\arraystretch}{1.23}
+    \begin{tabular}{@{}rrrrrrr@{}}
+      \toprule
+      $h$ & Unknowns & Error vs ODE & Policy steps & Policy (s) & PSOR sweeps & PSOR (s) \\
+      \midrule
+      5.0 & 119 & 0.4013 & 6 & 0.00044 & 10\,260 & 1.13 \\
+      2.5 & 239 & 0.1919 & 12 & 0.00067 & 41\,073 & 10.77 \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \panel{The two solvers differ by less than $4\times10^{-8}$ in maximum norm
+    on these grids. The wall times are single-run measurements of compiled banded
+    solves versus sequential Python sweeps.}
+  \sourcefile{\textbf{Evidence} \enspace \texttt{results/independent\_audit/solver\_comparison.csv}.}
+\end{frame}
+
+\section{Conclusion}
+
+% 9:15–10:00. State the finite-domain estimate and the principal limitation. Then 3 minutes of Q&A.
+\begin{frame}[t]{The price and threshold are reliable for the stated domain}
+  \small
+  Continuous collocation for the local-volatility case on $[0,600]$ with $V(600)=0$.
+  \medskip
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.48\textwidth}
+      \panel{\labeltext{OPTION VALUE AT $S=100$}\par\smallskip
+        {\LARGE\bfseries $V(100)\approx16.0601$}}
+    \end{column}
+    \begin{column}{.48\textwidth}
+      \panel{\labeltext{EXERCISE THRESHOLD}\par\smallskip
+        {\LARGE\bfseries $S^*\approx69.2645$}}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{itemize}
+    \item Exact prices and same-domain ODE checks support the first-order grid study.
+    \item At the tested cutoffs, the far-field boundary is the largest observed sensitivity.
+    \item Reproduce the calculations from the project directory with \texttt{python run\_all.py}.
+  \end{itemize}
+  \vfill
+  {\large\bfseries\color{Teal} Questions\enspace $\cdot$\enspace 3 minutes\par}
+  \sourcefile{\textbf{Evidence} \enspace \texttt{results/independent\_audit/collocation.json}.}
 \end{frame}
 \end{document}

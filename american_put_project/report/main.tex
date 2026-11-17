@@ -1,130 +1,919 @@
 \documentclass[11pt,a4paper]{article}
-\usepackage[margin=25mm]{geometry}
-\usepackage{amsmath,amssymb,graphicx,booktabs,float,hyperref}
-\usepackage{microtype}
-\graphicspath{{../figures/}{../stage2_D_runs/20261105T132543802032Z/figures/}}
-\title{Perpetual American Put\\\large A finite-difference obstacle problem}
-\author{Coursework team: names and individual contributions to be completed}
-\date{Technical draft, 6 November 2026}
-\begin{document}\maketitle
+\usepackage[margin=25mm,headheight=15pt]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,microtype,xcolor,fancyhdr,array,float}
+\usepackage{tikz,pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\definecolor{ink}{HTML}{17324D}
+\definecolor{teal}{HTML}{007D79}
+\definecolor{rust}{HTML}{B04F29}
+
+\setlength{\parskip}{4pt}
+\setlength{\emergencystretch}{2em}
+\numberwithin{equation}{section}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily\color{ink} PROJECT 2}
+\fancyhead[R]{\small\sffamily\color{ink} PERPETUAL AMERICAN PUT}
+\fancyfoot[C]{\small\thepage}
+\title{\color{ink}\bfseries Numerical Solution of a Perpetual American Put\\[4pt]\large Price convergence, exercise boundary and domain sensitivity}
+\author{Team6\\[3pt]\small Numerical Analysis of ODEs and PDEs}
+\date{}
+\hypersetup{pdftitle={Team6 - Numerical Solution of a Perpetual American Put},pdfauthor={Team6},pdfsubject={Project 2 final report}}
+\begin{document}
+\maketitle
+
 \begin{abstract}
-We calculate the value and exercise threshold of a perpetual American put using a monotone finite-difference linear complementarity problem and policy iteration. The constant-volatility benchmark validates both the price and the threshold against an analytic solution. A local-volatility case is examined with four meshes, two refined references, three truncated domains, and independent continuous shooting and collocation calculations. For the finest study grid, the maximum price difference to the primary reference is $0.004604$ on $[0,600]$. The price at $S=100$ changes by $0.234265$ when the boundary moves from $400$ to $600$. A small algebraic residual therefore coexists with material truncation sensitivity. This is a technical draft. Student review, authorship, and formal course audit remain to be completed.
+We solve a stationary obstacle problem by monotone finite differences and
+policy iteration, recovering both the value curve and the exercise boundary.
+A constant-volatility benchmark gives a fitted maximum-norm price order of
+$0.996$. For prescribed local volatility, the fitted order against an
+independent continuous shooting solution on $[0,600]$ is $0.998$.
+Adaptive collocation checks the continuous value and boundary, and projected
+SOR checks the discrete solution under matched settings. The finest study
+mesh gives $V_h(100)=16.06528$ and a last exercise node of $69.25$.
+Shooting on the same domain gives $16.06008$ and $69.26448$.
+At fixed spacing, moving the outer boundary from $400$ to $600$ changes the
+option value at the strike by $0.23427$, about $51$ times its same-domain mesh/reference
+difference. A tolerance sweep separates the algebraic solve from this
+visible spatial and domain sensitivity. These experiments support
+approximately first-order price convergence on the tested finite domains,
+while identifying the far-boundary approximation as the principal remaining
+limitation on an infinite-domain valuation.
 \end{abstract}
-\tableofcontents
-\clearpage
+
+\section{Background}\label{sec:background}
+A perpetual American put permits the holder to sell an asset for a fixed
+strike whenever exercise is preferable to continued holding. The numerical
+task is to determine a value function together with an unknown exercise
+boundary. The perpetual contract makes the problem stationary. With one
+asset, the continuation equation is a second-order ordinary differential
+equation, coupled to a contact constraint across the whole exercise region.
+This is the one-dimensional degenerate elliptic obstacle direction specified
+in the Problem Pack \cite{problemPack}.
+
+The central question is how much numerical evidence supports a reported
+price and boundary. We use finite differences with a monotone drift
+stencil, solve the resulting linear complementarity problem (LCP), and
+separate algebraic, spatial and truncation effects. The exact first stage
+checks the price and boundary jointly. The local-volatility second stage
+uses nested reference grids, two continuous ODE methods, and a matched
+policy-iteration/projected-SOR comparison. The experiments follow the
+verification and cost-comparison requirements of the Project 2 Brief
+\cite{projectBrief}. In particular, comparisons at the same stock price
+allow mesh and domain sensitivity to be assessed on the same scale.
+
 %%%%%%%%%%%%%%
-\section{Background and model}\label{sec:model}
-A perpetual American put gives the holder the right to sell an asset for $K$ at any stopping time. Let $S$ be its price, $r$ the discount rate, $q$ the dividend yield, and $\sigma(S)$ the local volatility. The immediate exercise payoff is $\psi(S)=(K-S)^+$. In the risk-neutral model, continuation has differential operator
+\section{Model and benchmark}\label{sec:model}
+Let $S$ be the stock price, $K$ the strike, $r$ the risk-free rate,
+$q$ the dividend yield and $\sigma(S)$ the volatility. Under the pricing
+measure $\mathbb Q$, the stock dynamics and immediate payoff are
+\begin{equation}\label{eq:stock}
+ dS_t=(r-q)S_t\,dt+\sigma(S_t)S_t\,dW_t^{\mathbb Q},
+ \qquad \psi(S)=(K-S)^+.
+\end{equation}
+The holder chooses an exercise stopping time $\tau$. The optimal value is
+\begin{equation}\label{eq:stopping}
+ V(S)=\sup_{\tau\ge0}\mathbb E_S^{\mathbb Q}
+       \left[e^{-r\tau}\psi(S_\tau)\right],
+ \qquad V(S)\ge\psi(S).
+\end{equation}
+Applying Itô's formula to the discounted value, wherever $V$ is smooth,
+gives
+\begin{equation}\label{eq:ito}
+ d\big(e^{-rt}V(S_t)\big)=e^{-rt}
+ \left[\mathcal LV(S_t)\,dt+
+       \sigma(S_t)S_t V'(S_t)\,dW_t^{\mathbb Q}\right],
+\end{equation}
+where the stationary pricing operator is
 \begin{equation}\label{eq:operator}
-\mathcal L V = \tfrac12\sigma(S)^2S^2V''+(r-q)SV'-rV.
+ \mathcal LV=\tfrac12\sigma(S)^2S^2V''+(r-q)SV'-rV.
 \end{equation}
-The value satisfies the obstacle problem
+The conditional mean of the stochastic integral vanishes. Thus
+$\mathcal LV$ measures the local expected rate of change in discounted
+option value. Inside a continuation interval, take
+$\theta=\Delta t\wedge\tau_I$, where $\tau_I$ is the first exit from a
+small interval $I$ contained in the continuation region. Dynamic
+programming gives
+\begin{equation}\label{eq:dpp}
+ V(S)=\mathbb E_S^{\mathbb Q}\left[e^{-r\theta}V(S_\theta)\right],
+ \qquad \mathcal LV=0.
+\end{equation}
+The right-hand side already includes optimal decisions after $\theta$.
+At an exercise point, the value is immediately realisable as the payoff.
+Globally, the obstacle equation combines these conditions,
 \begin{equation}\label{eq:obstacle}
-\min\{-\mathcal L V,\,V-\psi\}=0,\qquad S>0,
+ \min\{-\mathcal LV,V-\psi\}=0,\qquad S>0.
 \end{equation}
-with $V(0)=K$ and $V(S)\to0$ as $S\to\infty$. The course problem statement provides the benchmark and scope \cite{pack,brief}. The continuation equation is a second-order ODE because there is one state variable and no expiry time. The complementarity formulation also illustrates the obstacle problems arising in elliptic PDEs. In the exercise region the value equals the payoff, while in the continuation region the differential equation holds. Value matching and smooth fit at the exercise threshold $S^*$ are
-\begin{equation}\label{eq:smoothfit}
-V(S^*)=K-S^*,\qquad V'(S^*)=-1.
-\end{equation}
-All experiments use $K=100$ and $r=0.05$. The first stage uses $q=0$ and constant $\sigma=0.20$. The second uses $q=0.02$ and
-\begin{equation}\label{eq:localvol}
-\sigma(S)=0.20\left[1+0.35\tanh\left(\frac{\log(S/100)}{0.40}\right)\right].
-\end{equation}
-The local volatility lies between $0.13$ and $0.27$. The calculation imposes the left boundary directly without evaluating the logarithm at zero.
-\clearpage
-%%%%%%%%%%%%%%
-\section{Discretisation and policy iteration}\label{sec:methods}
-For a uniform mesh $S_i=ih$ on $[0,L]$, write $d_i=\sigma(S_i)^2S_i^2/2$ and $b_i=(r-q)S_i$. The monotone discretisation of $-\mathcal L$ has coefficients
-\begin{equation}\label{eq:stencil}
-\ell_i=-d_i/h^2-b_i^-/h,\quad c_i=2d_i/h^2+|b_i|/h+r,\quad u_i=-d_i/h^2-b_i^+/h,
-\end{equation}
-where $b_i^+=\max(b_i,0)$ and $b_i^-=\max(-b_i,0)$. The off-diagonal entries are nonpositive and the full row dominance margin is $r>0$. Contributions of prescribed endpoints move to the right-hand side $f$. The unknown interior vector $v$ obeys
-\begin{equation}\label{eq:lcp}
-a=Av-f\ge0,\quad g=v-\psi\ge0,\quad \min(a,g)=0.
-\end{equation}
-Policy iteration for American option problems is discussed in \cite{policy}. Policy iteration starts from the payoff. Each iteration chooses the exercise row when $g_i<a_i$ and otherwise keeps the continuation row. A banded direct solve yields the next iterate. The stopping residual is $\rho=\|\min(a,g)\|_\infty$. Exact ties choose continuation. A repeated policy can terminate at a floating-point residual floor, which is separately recorded and does not imply the requested tolerance was met. The initial iterate, iteration count, actual residual and termination status are stored with each calculation.
+Where derivatives exist, both arguments are nonnegative and at least one
+vanishes. At the transition the equation is understood in the variational
+sense. On the unbounded domain, $V(0)=K$ and $V(S)\to0$ as $S\to\infty$.
+At zero the asset is absorbing and immediate exercise realises $K$.
 
-The exercise threshold is the last node in the contact interval connected to zero, with $|V_i-\psi_i|\le10^{-7}$ and $S_i<K$. The artificial right endpoint is excluded. The following node describes the discrete transition. This interval is not asserted to enclose the continuous threshold.
-\clearpage
+For a single contact interval $[0,b]$ with $b<K$, the exercise value is
+$V=K-S$ there and $\mathcal LV=0$ to its right. In the contact interior,
+$-\mathcal L(K-S)=rK-qS>0$ for both prescribed parameter sets. The value
+and slope meet at the free boundary,
+\begin{equation}\label{eq:fit}
+ V(b)=K-b,\qquad V'(b)=-1.
+\end{equation}
+These matching conditions supplement the global obstacle constraint.
+The discrete solver enforces that constraint at every interior node.
+
 %%%%%%%%%%%%%%
-\section{Verification design}\label{sec:verification}
-The first benchmark has an analytic continuation solution. Substituting $V(S)=CS^\lambda$ into the continuation equation gives the negative root $\lambda=-2.5$, whence
+\subsection{Stage 1 gives two independent benchmark quantities}
+With $K=100$, $r=0.05$, $q=0$ and $\sigma=0.20$, the power law
+$S^\lambda$ in the continuation region satisfies
+\begin{equation}\label{eq:power}
+  \tfrac12\sigma^2\lambda(\lambda-1)+r\lambda-r=0.
+\end{equation}
+The roots are $1$ and $\lambda_-=-2.5$. The growing solution is excluded by decay
+at infinity, leaving $V=CS^{-5/2}$. Value matching fixes
+$Cb^{-5/2}=K-b$, while slope matching yields
+\begin{equation}\label{eq:boundary-derivation}
+ -\frac{5}{2b}(K-b)=-1,
+ \qquad b=\tfrac52(K-b),
+ \qquad b=\frac{500}{7}.
+\end{equation}
+The exact boundary and value function are therefore
 \begin{equation}\label{eq:exact}
-S^*=500/7,\qquad V(S)=\begin{cases}100-S,&S\le S^*,\\(100-S^*)(S/S^*)^{-2.5},&S>S^*.\end{cases}
+ b=\frac{\lambda_-K}{\lambda_--1}=\frac{500}{7},
+ \qquad
+ V(S)=
+ \begin{cases}
+ K-S, & 0\le S\le b,\\
+ (K-b)(S/b)^{\lambda_-}, & S>b.
+ \end{cases}
 \end{equation}
-The Stage 1 mesh study uses the analytic value at $L=400$, removing the artificial endpoint error from this comparison. We measure the maximum nodal price error and the absolute threshold error. The discrete $L^2$ norm is also available in the saved tables.
+For this verification experiment we use $L=400$ and impose
+\eqref{eq:exact} at the right endpoint. The exact restriction to $[0,L]$
+then has the same endpoints as the discrete problem.
 
-Stage 2 uses the prescribed zero value at $L$. The mesh study fixes $L=600$ and compares nested nodes against $h=1/128$. The second reference at $h=1/256$ measures sensitivity to the choice of reference. The domain study fixes $h=0.0625$ and compares $L=300,400,600$. The recorded componentwise minima, complementarity residual, bounds, monotonicity, convexity and contact connectivity support each calculation.
+\subsection{Stage 2 introduces local volatility and a truncation choice}
+Stage 2 retains $K$ and $r$, takes $q=0.02$, and uses
+\begin{equation}\label{eq:volatility}
+ \sigma(S)=0.20\left[1+0.35\tanh\left(\frac{\log(S/100)}{0.40}\right)\right],
+ \qquad S>0.
+\end{equation}
+Volatility varies between the limiting values $0.13$ and $0.27$. The
+coefficients of \eqref{eq:operator} now vary with $S$ beyond the Euler
+powers, so the power-law benchmark no longer applies. On $[0,L]$ we set
+$V(0)=100$ and $V(L)=0$. The volatility is evaluated only at interior
+nodes, where the logarithm is defined. We vary $L$ independently of the
+mesh spacing to measure sensitivity to the zero endpoint.
 
-An independent ODE shooting method integrates backward from the zero endpoint and determines the threshold from smooth fit. A second implementation solves a transformed free-boundary problem by adaptive collocation with the threshold as an unknown parameter. These checks share the continuous model and boundary conditions while using different numerical methods. An exhaustive active-set enumeration on small grids independently checks the policy solver for the assembled matrix. The repository contains the actual inputs, raw arrays, diagnostics and tests.
-\clearpage
 %%%%%%%%%%%%%%
-\section{Constant-volatility results}\label{sec:stage1}
-Table~\ref{tab:stage1} records the four mesh levels. The observed price order is about one, as expected for the first-order drift stencil. A log-log fit over all four levels gives $p\approx0.996$. The boundary error is nonmonotone because the threshold is extracted from grid nodes. The smooth-fit diagnostic is supporting evidence alongside the full price and threshold comparisons.
-\begin{table}[H]\centering\caption{Stage 1 on $[0,400]$ with analytic right boundary.}\label{tab:stage1}
-\begin{tabular}{rrrrr}\toprule
-$h$ & max price error & threshold & threshold error & LCP residual \\\midrule
-0.5 & 0.058473 & 71.5000 & 0.071429 & $2.11\cdot10^{-11}$ \\
-0.25 & 0.029348 & 71.2500 & 0.178571 & $4.86\cdot10^{-11}$ \\
-0.125 & 0.014735 & 71.3750 & 0.053571 & $2.92\cdot10^{-11}$ \\
-0.0625 & 0.007363 & 71.4375 & 0.008929 & $1.16\cdot10^{-10}$ \\\bottomrule
-\end{tabular}\end{table}
-The requested tolerance was $10^{-8}$ for all four rows. The stored values are from \path{results/stage1_convergence.csv}. The separate Stage 1 script may reproduce slightly different last digits across platforms. Figure~\ref{fig:convergence} shows the two price-refinement studies.
-\begin{figure}[H]\centering\includegraphics[width=.88\textwidth]{value_and_convergence.pdf}\caption{Price profiles and maximum-norm mesh differences.}\label{fig:convergence}\end{figure}
-\clearpage
-%%%%%%%%%%%%%%
-\section{Local volatility and reference sensitivity}\label{sec:stage2}
-Table~\ref{tab:stage2} compares each mesh with the $h=1/128$ reference at coincident nodes. The maximum difference of the two references is $3.2843\cdot10^{-4}$, about $7.13\%$ of the finest study difference. The reference is therefore useful for the qualitative rate and contributes a visible bias to the finest measured difference. The fitted log-log order over the four displayed differences is about $1.054$. Against the independently integrated ODE solution, the fitted order is about $0.998$.
-\begin{table}[H]\centering\caption{Stage 2 refinement on $[0,600]$.}\label{tab:stage2}
-\begin{tabular}{rrrrr}\toprule
-$h$ & max difference & pairwise order & contact node & residual \\\midrule
-0.5 & 0.041218 & -- & 69.0000 & $4.70\cdot10^{-11}$ \\
-0.25 & 0.020437 & 1.012 & 69.2500 & $3.87\cdot10^{-11}$ \\
-0.125 & 0.009875 & 1.049 & 69.2500 & $1.76\cdot10^{-10}$ \\
-0.0625 & 0.004604 & 1.101 & 69.2500 & $9.56\cdot10^{-10}$ \\\bottomrule
-\end{tabular}\end{table}
-All study meshes meet the requested $10^{-8}$ residual. The primary and finer reference residuals are $2.98\cdot10^{-8}$ and $1.19\cdot10^{-7}$, respectively, and terminate at a recorded floating-point floor. Repeating the finest reference with a tighter request gives the same stored vector, which measures tolerance sensitivity but does not establish a forward-error bound. Contact-node agreement between the references remains subject to the chosen classification tolerance.
-\clearpage
-%%%%%%%%%%%%%%
-\section{Domain truncation and continuous checks}\label{sec:domain}
-At fixed $h=0.0625$, the three truncated domains give the values in Table~\ref{tab:domain}. The shooting and collocation results agree to better than $10^{-6}$ at each endpoint location. At $L=600$, collocation gives $S^*=69.26448256$ and $V(100)=16.06007591$ for the finite-domain problem. These independent continuous checks are recorded in \path{results/independent_audit/collocation.json}.
-\begin{table}[H]\centering\caption{Fixed-mesh domain comparison and continuous collocation.}\label{tab:domain}
-\begin{tabular}{rrrrr}\toprule
-$L$ & $V_h(100)$ & $V_h(200)$ & contact node & collocation $V(100)$\\\midrule
-300 & 15.456044 & 4.552002 & 69.6875 & 15.451228 \\
-400 & 15.831017 & 5.871201 & 69.4375 & 15.825975 \\
-600 & 16.065282 & 6.691671 & 69.2500 & 16.060076 \\\bottomrule
-\end{tabular}\end{table}
-The change in $V_h(100)$ between $L=400$ and $L=600$ is $0.234265$, materially greater than the finest mesh comparison in Table~\ref{tab:stage2}. Enlarging the domain and refining a fixed domain address different errors. The largest domain is a comparison baseline and does not provide a certified infinite-domain error bound. Figure~\ref{fig:domain} illustrates the domain sensitivity.
-\begin{figure}[H]\centering\includegraphics[width=.88\textwidth]{domain_truncation_D.pdf}\caption{Comparison of truncated domains at fixed mesh size.}\label{fig:domain}\end{figure}
-\clearpage
-%%%%%%%%%%%%%%
-\section{Matched solver comparison}\label{sec:solver}
-We compare policy iteration and projected SOR on the same Stage 2 matrix, zero endpoint, payoff initial iterate and absolute LCP residual target $10^{-8}$. Projected SOR uses relaxation parameter $\omega=1.2$. On $h=5$ and $2.5$, the methods agree in maximum norm within $4\cdot10^{-8}$. The run records unknowns, iteration counts, residuals and elapsed wall time in \texttt{solver\_comparison.csv} in \texttt{results/independent\_audit/}.
+\section{Monotone finite differences and the LCP}\label{sec:discrete}
+\subsection{A monotone stencil and endpoint elimination}\label{sec:stencil}
+Use $N=L/h$ intervals with nodes $S_i=ih$. Let
+$d_i=\sigma(S_i)^2 S_i^2/2$, $\mu_i=(r-q)S_i$ and
+$\mu_i^\pm=\max(\pm \mu_i,0)$. A centred second derivative and a one-sided
+drift difference give the row of $-\mathcal L_h$ with coefficients
+\begin{equation}\label{eq:stencil}
+ \ell_i=-d_i/h^2-\mu_i^-/h,\quad
+ c_i=2d_i/h^2+|\mu_i|/h+r,\quad
+ u_i=-d_i/h^2-\mu_i^+/h.
+\end{equation}
+In the two cases $\mu_i>0$, so the drift in $\mathcal L_h$ uses the forward
+difference, $V'(S_i)\approx(v_{i+1}-v_i)/h$. Its contribution increases
+the nonnegative right-neighbour weight in $\mathcal L_h$.
+This keeps both off-diagonals of $-\mathcal L_h$ nonpositive
+even near zero, where $d_i$ tends to zero quadratically. On a smooth
+continuation interval the drift term has first-order truncation error and
+the centred diffusion term is second order. The refinement study tests the
+resulting price accuracy across the entire grid, including the exercise
+transition.
 
-Table~\ref{tab:cost} lists the measured cost. These are single solver calls, including setup, on the recorded machine.
-\begin{table}[H]\centering\caption{Matched solver comparison at tolerance $10^{-8}$, with maximum nodal price error relative to shooting.}\label{tab:cost}
-\begin{tabular}{rrrrrrr}\toprule
-$h$ & unknowns & price error & policy iters & policy sec & PSOR iters & PSOR sec\\\midrule
-5 & 119 & 0.4013 & 6 & 0.00044 & 10260 & 1.13 \\
-2.5 & 239 & 0.1919 & 12 & 0.00067 & 41073 & 10.77 \\
+Let $A$ be the $(N-1)\times(N-1)$ matrix obtained by retaining the interior
+columns. For $v=(V_1,\dots,V_{N-1})^\top$ the first and last rows of
+$Av-f$ incorporate $f_1=-\ell_1V_0$ and
+$f_{N-1}=-u_{N-1}V_N$ as additive contributions to $f$.
+The remaining components of $f$ vanish. The Stage 1 analytic endpoint
+tests a nonzero last-row contribution. In Stage 2 it is zero. Before
+elimination the row sum is $r$, and removing nonpositive boundary
+coefficients can only increase it. The diagonal is positive, the
+off-diagonals are nonpositive and $A\mathbf1\ge r\mathbf1$.
+A negative minimum component of $x$ would give a negative component
+of $Ax$ at the same index, proving the discrete maximum principle
+$Ax\ge0\Rightarrow x\ge0$. In particular, $A$ is a nonsingular
+$M$-matrix. Equation~\eqref{eq:matrix} displays the resulting interior system.
+
+For $n=N-1$ interior unknowns, the interior matrix has three bands and the eliminated endpoint data
+give the vector $f$,
+\begin{equation}\label{eq:matrix}
+ A=\begin{bmatrix}
+ c_1&u_1&&0\\
+ \ell_2&c_2&\ddots&\\
+ &\ddots&\ddots&u_{n-1}\\
+ 0&&\ell_n&c_n
+ \end{bmatrix},\qquad
+ f=\begin{bmatrix}-\ell_1V_0\\0\\\vdots\\-u_nV_N\end{bmatrix}.
+\end{equation}
+The code stores only the lower, main and upper diagonals. Known endpoint
+values enter $f$ and are excluded from the unknown vector.
+
+%%%%%%%%%%%%%%
+\subsection{Policy iteration and banded linear solves}\label{sec:policy}
+At each interior node set $a=Av-f$, $g=v-\psi_h$ and use the componentwise
+residual
+\begin{equation}\label{eq:lcp}
+  F(v)=\min(a,g),\qquad F(v)=0,\qquad
+  \rho(v)=\|F(v)\|_\infty.
+\end{equation}
+We initialise $v^{(0)}=\psi_h$. Each policy iteration has four steps.
+\begin{enumerate}
+\item Evaluate $a=Av^{(k)}-f$ and $g=v^{(k)}-\psi_h$ using the original
+      continuation operator.
+\item Select exercise where $g_i<a_i$. Replace that row by
+      $v_i=\psi_i$, keeping the continuation equation elsewhere.
+      Exact ties select continuation, allowing the zero-payoff tail to
+      participate in the initial solve.
+\item Solve the selected tridiagonal system $B^{(k)}v^{(k+1)}=f^{(k)}$.
+\item Recompute \eqref{eq:lcp} with the original $A$ and $f$ and stop
+      when $\rho\le\tau$.
+\end{enumerate}
+The policy matrix and right-hand side are explicitly
+\begin{equation}\label{eq:policy-rows}
+ (B^{(k)}_{i,:},f^{(k)}_i)=
+ \begin{cases}
+  (e_i^\top,\psi_i), & g_i<a_i,\\
+  (A_{i,:},f_i), & g_i\ge a_i,
+ \end{cases}
+\end{equation}
+where $e_i$ is the $i$th coordinate vector. Changing a row retains the
+three-band structure. NumPy performs assembly and matrix actions. SciPy's
+\texttt{solve\_banded((1,1),ab,rhs)} solves each policy system.
+In the tested SciPy implementation, the three-diagonal case calls
+LAPACK \texttt{DGTSV}, which uses Gaussian elimination with partial
+pivoting followed by back substitution \cite{lapack}.
+One linear solve has $O(N)$ work and storage. The full LCP cost also
+depends on the number of policy iterations \cite{rw}.
+
+For example, at $L=200$, $h=50$ in Stage 2, the initial payoff vector is
+$(50,0,0)^\top$. The first policy selects exercise in row 1 and retains
+the two continuation rows. With coefficients rounded for display,
+\begin{equation}\label{eq:three-node-policy}
+ \begin{bmatrix}
+ 1&0&0\\
+ -0.08&0.27&-0.14\\
+ 0&-0.28966&0.71931
+ \end{bmatrix}
+ \begin{bmatrix}v_1\\v_2\\v_3\end{bmatrix}
+ =\begin{bmatrix}50\\0\\0\end{bmatrix}.
+\end{equation}
+The first row removes $v_1$ from row 2. The next pivot exchanges rows
+2 and 3 because $0.28966>0.27$. Elimination gives
+$0.53050v_3\approx4$. Back substitution recovers
+$(50,18.72448,7.54007)^\top$ using the unrounded coefficients from the assembled problem.
+
+The main stopping target is $\tau=10^{-8}$. If a policy repeats with
+$\rho>\tau$, the code compares the defect with a scale-dependent
+floating-point estimate, retains the achieved residual, and flags the
+unmet request. This estimate is a diagnostic of cancellation. The scaled
+backward residual of the last policy system is reported separately,
+\begin{equation}\label{eq:backward-residual}
+ \eta=\max_i\frac{|(Bv-f^{\mathrm{pol}})_i|}
+ {\max\{1,\|B_{i,:}\|_1\|v\|_\infty+|f^{\mathrm{pol}}_i|\}}.
+\end{equation}
+
+%%%%%%%%%%%%%%
+\subsection{Projected SOR and threshold extraction}\label{sec:psor}
+The comparison solver starts from the same payoff vector and sweeps
+left to right. For a continuation row of $Av=f$, isolate the current
+unknown using the newest available neighbour values,
+\begin{equation}\label{eq:psor}
+ \begin{aligned}
+ p_i&=\frac{f_i-\ell_i v_{i-1}^{\mathrm{new}}
+                     -u_i v_{i+1}^{\mathrm{old}}}{c_i},\\
+ v_i^{\mathrm{new}}
+    &=\max\{\psi_i,\ v_i^{\mathrm{old}}+
+                        \omega(p_i-v_i^{\mathrm{old}})\},
+ \qquad \omega=1.2.
+ \end{aligned}
+\end{equation}
+Eliminated endpoint terms are included only through $f$. At the first
+and last interior nodes, absent unknown-neighbour terms in
+\eqref{eq:psor} are omitted. After a complete sweep the solver tests
+the same complementarity residual \eqref{eq:lcp}. The relaxation changes
+the iteration path, and the projection enforces the exercise lower bound.
+
+The discrete threshold $b_h$ is the last node in the contact block
+connected to zero. We classify $S_i<K$ as contact when
+$|V_i-\psi_i|\le10^{-7}$ and exclude the imposed right endpoint.
+The reported pair $(S_i,S_{i+1})$ describes the nodal transition.
+No interpolation is applied. In Stage 1 we also measure
+$|(V_{i+2}-V_{i+1})/h+1|$ using the first two continuation nodes
+as an auxiliary smooth-fit diagnostic.
+
+%%%%%%%%%%%%%%
+\section{Verification protocol}\label{sec:verification}
+For reference prices $R_i$ on coincident grid nodes, let
+$e_i=V_i-R_i$. We use the nodal maximum norm and a discrete trapezoidal
+$L^2$ norm on the comparison interval,
+\begin{equation}\label{eq:norms}
+ E_\infty(h)=\max_{0\le i\le N}|e_i|,\qquad
+ E_2(h)=\left[h\left(\tfrac12 e_0^2+\sum_{i=1}^{N-1}e_i^2+
+                   \tfrac12 e_N^2\right)\right]^{1/2}.
+\end{equation}
+The original Stage 1 data use full endpoint weights, which coincide
+with \eqref{eq:norms} because both endpoint errors vanish. All mesh
+studies use $h=0.5,0.25,0.125,0.0625$. We fit
+$\log E_\infty=\alpha+p\log h$ by unweighted least squares and report
+the maximum absolute deviation in log error. Stage 1 independently
+checks price and threshold against \eqref{eq:exact}.
+
+For Stage 2, all grid and continuous references in the mesh study use
+$L=600$ and the same zero right endpoint. The primary reference has
+$h_r=1/128$ and a second reference has $h_r/2=1/256$.
+The primary reference subdivides each interval of the finest study mesh
+$h=1/16$ into eight intervals. Every study node coincides with a reference
+node, so comparison uses direct subsampling. The extra reference level
+measures sensitivity to the finite reference spacing. Since both reference
+grids use the same discretisation, two continuous ODE methods also check
+the finite-domain solution.
+
+%%%%%%%%%%%%%%
+\subsection{Continuous shooting and collocation}\label{sec:shooting}
+In shooting, write $y_1=W$ and $y_2=W'$ and integrate
+\begin{equation}\label{eq:shooting-system}
+ \begin{aligned}
+ y_1'&=y_2,\\
+ y_2'&=\frac{r y_1-(r-q)S y_2}{\tfrac12\sigma(S)^2S^2},
+ \qquad y_1(L)=0,\quad y_2(L)=-1.
+ \end{aligned}
+\end{equation}
+The initial slope normalises an auxiliary solution. SciPy's
+\texttt{solve\_ivp} uses adaptive RK45, the Dormand--Prince 5(4) pair.
+It advances with the fifth-order formula and uses the embedded error
+estimate to adjust the step \cite{scipyIVP}. The independent variable
+is stock price. Integration runs from $S=L$ down to $10$, with relative
+tolerance $2\times10^{-11}$, absolute tolerance $10^{-12}$, maximum step
+$1$, and dense output for evaluating trial contact points.
+
+Because the continuation equation is linear and homogeneous, scaling
+preserves both the equation and the zero right endpoint. For a trial
+boundary $b$, the value and slope conditions are
+\begin{equation}\label{eq:shooting-match}
+ \mathcal L(cW)=c\mathcal LW=0,\qquad
+ cW(b)=K-b,\qquad cW'(b)=-1.
+\end{equation}
+Eliminating $c=-1/W'(b)$ leaves a scalar root problem,
+\begin{equation}\label{eq:shooting-root}
+ H(b)=W(b)+(K-b)W'(b)=0.
+\end{equation}
+Brent's method searches $[30,99]$ with root tolerance $10^{-11}$.
+Each trial uses the stored ODE solution. At the root, $V=K-S$ below
+$b$ and $V=cW$ above it. The ODE controls the whole continuation curve.
+The two matching conditions locate its contact with the payoff.
+
+As a separate continuous check, adaptive collocation uses
+$S=b+(L-b)t$, $0\le t\le1$, and solves for the two ODE components
+and unknown $b$ jointly. It enforces $V(b)=K-b$, $V'(b)=-1$ and
+$V(L)=0$ with SciPy's \texttt{solve\_bvp} at tolerance $10^{-9}$.
+The two continuous methods use the same model and boundary conditions
+and share no FDM matrix or policy iteration. Small-grid exhaustive
+active-set enumeration checks the discrete policy solver using the
+assembled matrix. Hand-calculated rows, boundary tests and consistency
+checks separately test assembly. Each main run records $\min a$,
+$\min g$, $\rho$, bounds relative to $\psi$ and $K$, nodal first and
+second differences, and contact connectivity.
+
+\subsection{Separating the algebraic error}\label{sec:algebra}
+The matrix structure provides a residual estimate in exact arithmetic.
+Let $w$ solve the discrete LCP, set $e=v-w$, and suppose $e_i=M>0$
+is a maximum component. Then
+$(Ae)_i\ge(A\mathbf1)_iM\ge rM$ since the off-diagonals are
+nonpositive. Both arguments of $F_i(v)$ exceed their counterparts
+at $w$ by at least $\min(r,1)M$, so $F_i(v)\ge\min(r,1)M$.
+At a negative minimum $e_i=-M$, both arguments decrease by at least
+$\min(r,1)M$, so $F_i(v)\le-\min(r,1)M$. Taking the larger magnitude
+gives
+\begin{equation}\label{eq:resbound}
+ \|v-w\|_\infty\le \frac{\rho(v)}{\min(r,1)}.
+\end{equation}
+This estimate concerns the solution of the fixed discrete LCP.
+We use the computed residual to assess its scale, and compare
+solutions at tighter tolerances because evaluation of $Av-f$
+itself incurs cancellation on fine grids.
+
+%%%%%%%%%%%%%%
+\section{Numerical experiments}\label{sec:results}
+\subsection{Stage 1 prices converge to the exact benchmark}
+Table~\ref{tab:stage1} records the errors and stopping diagnostics.
+The maximum price error decreases by a factor of $7.94$ over the
+three halvings. The fitted order $0.996$ is consistent with the
+first-order drift discretisation. The nodal threshold moves from
+$71.5$ to $71.25$ before approaching the exact $500/7$. Its
+nonmonotone error reflects a threshold extracted from a changing
+set of grid nodes. The smooth-fit defect decreases from $0.04541$ to
+$0.00585$, supplying an additional local check.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Stage 1 on $[0,400]$ with the analytic endpoint.
+All four runs meet the requested $\tau=10^{-8}$.}
+\label{tab:stage1}
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+$h$ & $E_\infty$ & $E_2$ & $b_h$ & $|b_h-b|$ & Iterations & $\rho$\\
+\midrule
+0.5    & 0.058473 & 0.496007 & 71.5000 & 0.071429 & 57  & $2.11\times10^{-11}$\\
+0.25   & 0.029348 & 0.248716 & 71.2500 & 0.178571 & 115 & $4.86\times10^{-11}$\\
+0.125  & 0.014735 & 0.124788 & 71.3750 & 0.053571 & 229 & $2.92\times10^{-11}$\\
+0.0625 & 0.007363 & 0.062349 & 71.4375 & 0.008929 & 457 & $1.16\times10^{-10}$\\
 \bottomrule
-\end{tabular}\end{table}
+\end{tabular}
+\end{table}
 
-The stored implementation performs projected SOR sweeps in Python, whereas policy iteration delegates its tridiagonal linear systems to compiled SciPy routines. The measured wall-time difference includes that implementation difference and machine effects. A single measured timing is a cost observation and should not be interpreted as a machine-independent algorithmic speedup. The residual target, not an iterate difference, determines termination in both solvers.
+\subsection{Stage 2 converges to a fixed-domain price}
+Table~\ref{tab:stage2} compares each grid with both the primary LCP
+reference and the continuous shooting solution. Figure~\ref{fig:orders}
+shows the near-parallel price-error trends. The fitted orders are
+$1.054$ against the primary grid and $0.998$ against shooting. At the
+finest study spacing the $1/256$ reference gives a maximum difference
+of $0.004932$, compared with $0.004604$ for the primary reference.
+The two reference prices differ by at most $3.2843\times10^{-4}$ on
+their common nodes, about $7.1\%$ of the finest primary-grid difference.
+Their raw complementarity residuals are $2.98\times10^{-8}$ and
+$1.19\times10^{-7}$, respectively. In the strict-reference study, both requested $10^{-8}$ and report
+a floating-point floor above that target. Tightening the request on the finest
+reference produced the same stored vector. The comparison with shooting
+exhibits the same first-order trend without the shared grid bias.
 
-The analytic Stage 1 solution, exhaustive tiny-grid active sets and the two continuous Stage 2 calculations supply independent checks of different parts of the chain. The two continuous calculations share the same model transcription, so the parameter and sign checks still matter. The tolerance sweep records identical values under tighter stopping requests on the representative study mesh. The remaining finite-domain bias is not controlled by that sweep.
-\clearpage
+\begin{table}[htbp]
+\centering\small
+\caption{Stage 2 mesh refinement at $L=600$. The norms in the
+middle columns use the $h=1/128$ reference. All four study runs
+meet $\tau=10^{-8}$.}
+\label{tab:stage2}
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+$h$ & $E_\infty$ & $E_2$ & $E_\infty$ vs shooting & $b_h$ & Iterations & $\rho$\\
+\midrule
+0.5    & 0.041218 & 0.430341 & 0.041875 & 69.00 & 62  & $4.70\times10^{-11}$\\
+0.25   & 0.020437 & 0.212970 & 0.021093 & 69.25 & 123 & $3.87\times10^{-11}$\\
+0.125  & 0.009875 & 0.102886 & 0.010532 & 69.25 & 246 & $1.76\times10^{-10}$\\
+0.0625 & 0.004604 & 0.047964 & 0.005260 & 69.25 & 492 & $9.56\times10^{-10}$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{loglogaxis}[
+width=.88\linewidth,height=6.3cm,
+xlabel={Mesh spacing $h$},ylabel={Maximum nodal price difference},
+grid=major,grid style={ink!12},axis line style={ink!55},
+legend style={font=\footnotesize,at={(.02,.98)},anchor=north west,draw=none},
+log ticks with fixed point,
+xtick={0.0625,0.125,0.25,0.5},
+xticklabels={0.0625,0.125,0.25,0.5},xmin=0.052,xmax=0.60,
+ytick={0.005,0.01,0.02,0.04},ymin=0.0025,ymax=0.08]
+\addplot[ink,thick,mark=*] coordinates {
+ (0.0625,0.007362522) (0.125,0.01473496) (0.25,0.02934767) (0.5,0.05847316)};
+\addlegendentry{Stage 1 vs exact}
+\addplot[teal,thick,mark=square*] coordinates {
+ (0.0625,0.004603695) (0.125,0.009874804) (0.25,0.02043659) (0.5,0.04121838)};
+\addlegendentry{Stage 2 vs $h=1/128$}
+\addplot[rust,thick,mark=triangle*] coordinates {
+ (0.0625,0.005260484) (0.125,0.01053159) (0.25,0.02109338) (0.5,0.04187515)};
+\addlegendentry{Stage 2 vs shooting}
+\addplot[gray,densely dashed,thick] coordinates {(0.0625,0.00275) (0.5,0.022)};
+\addlegendentry{Slope one}
+\end{loglogaxis}
+\end{tikzpicture}
+\caption{Four-level maximum-norm refinement. The fitted slopes are
+$0.996$, $1.054$ and $0.998$ for the three series, respectively.
+Maximum absolute log-fit deviations are $0.00190$, $0.0169$ and $0.00350$.}
+\label{fig:orders}
+\end{figure}
+
+\subsection{Exercise and shape diagnostics}
+In Table~\ref{tab:shape} the most negative recorded complementarity
+components occur at numerical roundoff scales. The raw first differences
+are nonpositive, the raw second differences are nonnegative to within
+$9.56\times10^{-10}$, and all four runs find a single contact block from
+zero. The full price vector satisfies $\psi_h\le V_h\le K$ up to the
+recorded payoff deficit in the table. These checks use nodal differences
+and a roundoff allowance. They provide shape diagnostics without
+estimating the accuracy of the divided second derivative.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Stage 2 shape and complementarity on the study grids at $L=600$.
+Here $\Delta V_i=V_{i+1}-V_i$ and
+$\Delta^2 V_i=V_{i+2}-2V_{i+1}+V_i$.}
+\label{tab:shape}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$h$ & $\min a$ & $\min g$ & $\max\Delta V$ & $\min\Delta^2 V$ & Scaled backward residual\\
+\midrule
+0.5    & $-7.28\times10^{-12}$ & $0$ & $-4.31\times10^{-3}$ & $0$ & $3.60\times10^{-13}$\\
+0.25   & $-2.91\times10^{-11}$ & $0$ & $-2.15\times10^{-3}$ & $0$ & $2.97\times10^{-13}$\\
+0.125  & $-1.16\times10^{-10}$ & $0$ & $-1.07\times10^{-3}$ & $0$ & $1.35\times10^{-12}$\\
+0.0625 & $-4.66\times10^{-10}$ & $-9.56\times10^{-10}$ & $-5.36\times10^{-4}$ & $-9.56\times10^{-10}$ & $7.31\times10^{-12}$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The last contact node stays at $69.25$ over three study meshes, while
+the independent finite-domain threshold is $69.26448$. This plateau
+is compatible with an improving price vector and grid-quantised
+contact classification. Figure~\ref{fig:contact} shows the price
+and the gap to exercise near the transition.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=.48\linewidth,height=5.6cm,xlabel={Stock price $S$},ylabel={Value},
+ xmin=0,xmax=160,ymin=0,ymax=105,grid=major,grid style={ink!10},
+ legend style={font=\footnotesize,draw=none},legend pos=north east]
+\addplot[teal,thick] coordinates {(0,100) (2.5,97.5) (5,95) (7.5,92.5) (10,90)
+(12.5,87.5) (15,85) (17.5,82.5) (20,80) (22.5,77.5)
+(25,75) (27.5,72.5) (30,70) (32.5,67.5) (35,65)
+(37.5,62.5) (40,60) (42.5,57.5) (45,55) (47.5,52.5)
+(50,50) (52.5,47.5) (55,45) (57.5,42.5) (60,40)
+(62.5,37.5) (65,35) (67.5,32.5) (69.25,30.75) (69.3125,30.68762082)
+(70,30.01846998) (72.5,27.82470359) (75,25.9505804) (77.5,24.33556584) (80,22.93211192)
+(82.5,21.70262147) (85,20.61717845) (87.5,19.65183581) (90,18.78731349) (92.5,18.00800109)
+(95,17.30118885) (97.5,16.65647126) (100,16.06528213) (102.5,15.52053021) (105,15.01631258)
+(107.5,14.54768806) (110,14.11049748) (112.5,13.70122042) (115,13.31686077) (117.5,12.9548547)
+(120,12.61299657) (122.5,12.28937896) (125,11.98234389) (127.5,11.69044306) (130,11.41240527)
+(132.5,11.14710954) (135,10.89356304) (137.5,10.65088259) (140,10.41827943) (142.5,10.19504633)
+(145,9.980546821) (147.5,9.774206097) (150,9.575503313) (152.5,9.383965009) (155,9.199159512)
+(157.5,9.020692126) (160,8.848200992)};
+\addlegendentry{$V_h$}
+\addplot[rust,dashed,thick] coordinates {(0,100) (100,0) (160,0)};
+\addlegendentry{$\psi$}
+\draw[dotted,ink] (axis cs:69.25,0)--(axis cs:69.25,30.75);
+\addplot[only marks,teal,mark=*] coordinates {(80,22.93211192) (100,16.06528213)};
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=.48\linewidth,height=5.6cm,xlabel={Stock price $S$},ylabel={Gap $V_h-\psi$},
+ xmin=60,xmax=80,ymin=-.05,ymax=3.1,grid=major,grid style={ink!10}]
+\addplot[teal,thick] coordinates {(60,0) (60.125,0) (60.25,0) (60.375,0) (60.5,0)
+(60.625,0) (60.75,0) (60.875,0) (61,0) (61.125,0)
+(61.25,0) (61.375,0) (61.5,0) (61.625,0) (61.75,0)
+(61.875,0) (62,0) (62.125,0) (62.25,0) (62.375,0)
+(62.5,0) (62.625,0) (62.75,0) (62.875,0) (63,0)
+(63.125,0) (63.25,0) (63.375,0) (63.5,0) (63.625,0)
+(63.75,0) (63.875,0) (64,0) (64.125,0) (64.25,0)
+(64.375,0) (64.5,0) (64.625,0) (64.75,0) (64.875,0)
+(65,0) (65.125,0) (65.25,0) (65.375,0) (65.5,0)
+(65.625,0) (65.75,0) (65.875,0) (66,0) (66.125,0)
+(66.25,0) (66.375,0) (66.5,0) (66.625,0) (66.75,0)
+(66.875,0) (67,0) (67.125,0) (67.25,0) (67.375,0)
+(67.5,0) (67.625,0) (67.75,0) (67.875,0) (68,0)
+(68.125,0) (68.25,0) (68.375,0) (68.5,0) (68.625,0)
+(68.75,0) (68.875,0) (69,0) (69.125,0) (69.25,0)
+(69.375,0.0005043132292) (69.5,0.002053509343) (69.625,0.004636020412) (69.75,0.00824042735) (69.875,0.01285545684)
+(70,0.01846997924) (70.125,0.02507300655) (70.25,0.03265369038) (70.375,0.04120131994) (70.5,0.05070532014)
+(70.625,0.06115524961) (70.75,0.07254079883) (70.875,0.08485178827) (71,0.09807816656) (71.125,0.1122100086)
+(71.25,0.127237514) (71.375,0.1431510051) (71.5,0.1599409252) (71.625,0.1775978372) (71.75,0.1961124216)
+(71.875,0.2154754752) (72,0.2356779089) (72.125,0.2567107467) (72.25,0.278565124) (72.375,0.3012322857)
+(72.5,0.3247035851) (72.625,0.3489704823) (72.75,0.3740245426) (72.875,0.3998574351) (73,0.4264609312)
+(73.125,0.4538269035) (73.25,0.4819473241) (73.375,0.5108142633) (73.5,0.5404198884) (73.625,0.5707564621)
+(73.75,0.6018163415) (73.875,0.6335919767) (74,0.6660759095) (74.125,0.6992607721) (74.25,0.7331392859)
+(74.375,0.7677042606) (74.5,0.8029485926) (74.625,0.838865264) (74.75,0.8754473413) (74.875,0.9126879745)
+(75,0.950580396) (75.125,0.9891179193) (75.25,1.028293938) (75.375,1.068101924) (75.5,1.108535429)
+(75.625,1.149588079) (75.75,1.191253578) (75.875,1.233525705) (76,1.276398311) (76.125,1.319865321)
+(76.25,1.363920733) (76.375,1.408558614) (76.5,1.453773103) (76.625,1.499558406) (76.75,1.545908799)
+(76.875,1.592818624) (77,1.640282292) (77.125,1.688294276) (77.25,1.736849116) (77.375,1.785941416)
+(77.5,1.835565841) (77.625,1.885717121) (77.75,1.936390046) (77.875,1.987579466) (78,2.039280291)
+(78.125,2.091487492) (78.25,2.144196096) (78.375,2.197401188) (78.5,2.251097911) (78.625,2.305281462)
+(78.75,2.359947096) (78.875,2.41509012) (79,2.470705898) (79.125,2.526789843) (79.25,2.583337424)
+(79.375,2.640344161) (79.5,2.697805624) (79.625,2.755717436) (79.75,2.814075268) (79.875,2.87287484)
+(80,2.932111922)};
+\draw[dashed,rust] (axis cs:69.25,0)--(axis cs:69.25,2.8);
+\node[anchor=west,font=\footnotesize] at (axis cs:69.6,2.8) {$b_h=69.25$};
+\end{axis}
+\end{tikzpicture}
+\caption{Stage 2 at $L=600$, $h=0.0625$. The left panel shows the value
+and payoff around the exercise region and strike. At $S=80$,
+$V_h\approx22.93211$ while exercise pays $20$. At $S=100$,
+$V_h\approx16.06528$ while exercise pays zero. The right panel resolves
+the gap near the last contact node.}
+\label{fig:contact}
+\end{figure}
+
+\subsection{Tighter stopping requests leave the price unchanged}
+At $h=0.0625$, the tolerance sweep in Table~\ref{tab:tolerance} returns
+identical full vectors, so the price at the strike and the
+reference-based error are unchanged. The finest study residual
+corresponds to $1.91\times10^{-8}$ under the exact-arithmetic estimate
+\eqref{eq:resbound} if evaluated without cancellation. Its scale is
+far below the finest mesh difference $0.004604$.
+The stricter request falls below the measured residual and is
+flagged accordingly.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Algebraic tolerance sweep at $h=0.0625$, $L=600$.
+Maximum price changes are relative to the $10^{-8}$ run.}
+\label{tab:tolerance}
+\begin{tabular}{@{}rrrrl@{}}
+\toprule
+Requested $\tau$ & Iterations & Achieved $\rho$ & $\|\Delta V_h\|_\infty$ & Stop\\
+\midrule
+$10^{-6}$ & 492 & $9.56\times10^{-10}$ & 0 & Tolerance met\\
+$10^{-8}$ & 492 & $9.56\times10^{-10}$ & 0 & Tolerance met\\
+$10^{-10}$ & 493 & $9.56\times10^{-10}$ & 0 & Floating-point floor\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Moving the outer boundary changes the price at the strike}
+Keeping $h=0.0625$ and comparing prices on common nodes isolates the
+effect of moving the imposed zero endpoint. Table~\ref{tab:domain}
+reports prices and thresholds for $L=300,400,600$. Over these three
+domains, shooting and collocation agree within $2.0\times10^{-10}$
+for the threshold and $1.4\times10^{-10}$ for the price at the strike.
+Their agreement measures consistency of two continuous methods for
+the same truncated problem.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Stage 2 domain study at fixed spacing $h=0.0625$.
+The continuous columns use adaptive collocation on each domain.}
+\label{tab:domain}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+$L$ & $V_h(100)$ & $V_h(200)$ & $b_h$ & Continuous $V(100)$ & Continuous $b$\\
+\midrule
+300 & 15.45604 & 4.55200 & 69.6875 & 15.45123 & 69.68234\\
+400 & 15.83102 & 5.87120 & 69.4375 & 15.82597 & 69.42374\\
+600 & 16.06528 & 6.69167 & 69.2500 & 16.06008 & 69.26448\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At $S=100$, the mesh/reference difference on $[0,600]$ is
+$|16.06528213-16.06072592|=0.00455621$. Moving $L$ from $400$
+to $600$ at the same mesh spacing changes the value at the same stock price by
+$0.234265$. Figure~\ref{fig:domain} shows that the change extends
+across the continuation region. The maximum differences over $[0,200]$
+against the $L=600$ grid are $2.140$ and $0.820$ for $L=300$ and $400$.
+A supplemental continuous shooting study gives prices at the strike
+of $16.06008$, $16.17704$ and $16.19990$ for $L=600,1200,2400$.
+The shrinking increments show that the $L=600$ continuous price still
+changes by about $0.140$ when the endpoint is moved to $2400$.
+The tested finite-domain sequence demonstrates truncation sensitivity.
+A certified bound on the unbounded-domain price requires a separate
+far-field estimate.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=.48\linewidth,height=5.5cm,xlabel={Stock price $S$},ylabel={$V_{h,L}(S)$},
+ xmin=40,xmax=300,ymin=0,ymax=62,grid=major,grid style={ink!10},
+ legend style={font=\footnotesize,draw=none},legend pos=north east]
+\addplot[rust,dashed,thick] coordinates {(40,60) (45,55) (50,50) (55,45) (60,40)
+(65,35) (70,30.00354368) (75,25.80971262) (80,22.68196266) (85,20.26858473)
+(90,18.34747214) (95,16.77497135) (100,15.45604366) (105,14.32639884) (110,13.34156771)
+(115,12.47009707) (120,11.68924201) (125,10.98219528) (130,10.33627673) (135,9.741730444)
+(140,9.190912068) (145,8.677730417) (150,8.19725714) (155,7.745449275) (160,7.318948739)
+(165,6.914935121) (170,6.531015917) (175,6.165143492) (180,5.81555139) (185,5.480704831)
+(190,5.159261781) (195,4.85004197) (200,4.552001986) (205,4.264215041) (210,3.985854405)
+(215,3.7161797) (220,3.454525497) (225,3.200291746) (230,2.952935695) (235,2.71196503)
+(240,2.476932006) (245,2.24742841) (250,2.023081215) (255,1.803548809) (260,1.588517716)
+(265,1.377699723) (270,1.170829366) (275,0.967661714) (280,0.7679704141) (285,0.5715459556)
+(290,0.3781941318) (295,0.1877346687) (300,0)};
+\addlegendentry{$L=300$}
+\addplot[ink,dashdotted,thick] coordinates {(40,60) (45,55) (50,50) (55,45) (60,40)
+(65,35) (70,30.01137337) (75,25.89539513) (80,22.83517592) (85,20.48261345)
+(90,18.61785592) (95,17.09869025) (100,15.83101713) (105,14.75117175) (110,13.81511027)
+(115,12.99167517) (120,12.25833161) (125,11.59842498) (130,10.99938838) (135,10.45155156)
+(140,9.947336274) (145,9.480703114) (150,9.046764949) (155,8.64151203) (160,8.261613349)
+(165,7.90427077) (170,7.56711026) (175,7.248099607) (180,6.94548529) (185,6.657743428)
+(190,6.383541194) (195,6.121706112) (200,5.871201366) (205,5.631105759) (210,5.400597283)
+(215,5.178939546) (220,4.965470464) (225,4.759592784) (230,4.560766071) (235,4.368499909)
+(240,4.182348091) (245,4.001903624) (250,3.826794421) (255,3.656679568) (260,3.491246069)
+(265,3.330206005) (270,3.173294039) (275,3.020265221) (280,2.870893049) (285,2.72496775)
+(290,2.582294755) (295,2.442693341) (300,2.305995413)};
+\addlegendentry{$L=400$}
+\addplot[teal,thick] coordinates {(40,60) (45,55) (50,50) (55,45) (60,40)
+(65,35) (70,30.01846998) (75,25.9505804) (80,22.93211192) (85,20.61717845)
+(90,18.78731349) (95,17.30118885) (100,16.06528213) (105,15.01631258) (110,14.11049748)
+(115,13.31686077) (120,12.61299657) (125,11.98234389) (130,11.41240527) (135,10.89356304)
+(140,10.41827943) (145,9.980546821) (150,9.575503313) (155,9.199159512) (160,8.848200992)
+(165,8.519843255) (170,8.211723575) (175,7.921819173) (180,7.648384442) (185,7.389902161)
+(190,7.145045128) (195,6.912645622) (200,6.691670854) (205,6.481203031) (210,6.280423023)
+(215,6.088596856) (220,5.905064481) (225,5.729230335) (230,5.560555385) (235,5.39855036)
+(240,5.242769974) (245,5.092807962) (250,4.948292795) (255,4.808883966) (260,4.674268754)
+(265,4.544159403) (270,4.418290635) (275,4.296417469) (280,4.178313293) (285,4.063768157)
+(290,3.952587253) (295,3.844589563) (300,3.739606651)};
+\addlegendentry{$L=600$}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=.48\linewidth,height=5.5cm,xlabel={Stock price $S$},
+ ylabel={$V_{h,L}-V_{h,600}$},xmin=0,xmax=200,ymin=-2.3,ymax=.1,
+ grid=major,grid style={ink!10}]
+\addplot[rust,dashed,thick] coordinates {(0,0) (5,0) (10,0) (15,0) (20,0)
+(25,0) (30,0) (35,0) (40,0) (45,0)
+(50,0) (55,0) (60,0) (65,0) (70,-0.01492629737)
+(75,-0.1408677748) (80,-0.25014926) (85,-0.3485937173) (90,-0.4398413545) (95,-0.5262174934)
+(100,-0.6092384656) (105,-0.6899137354) (110,-0.7689297702) (115,-0.846763698) (120,-0.9237545607)
+(125,-1.000148612) (130,-1.076128536) (135,-1.151832592) (140,-1.227367366) (145,-1.302816404)
+(150,-1.378246172) (155,-1.453710237) (160,-1.529252253) (165,-1.604908134) (170,-1.680707658)
+(175,-1.756675681) (180,-1.832833052) (185,-1.90919733) (190,-1.985783347) (195,-2.062603652)
+(200,-2.139668868)};
+\addplot[ink,dashdotted,thick] coordinates {(0,0) (5,0) (10,0) (15,0) (20,0)
+(25,0) (30,0) (35,0) (40,0) (45,0)
+(50,0) (55,0) (60,0) (65,0) (70,-0.007096606899)
+(75,-0.05518526289) (80,-0.09693600146) (85,-0.1345649954) (90,-0.1694575759) (95,-0.2024985944)
+(100,-0.2342649966) (105,-0.2651408241) (110,-0.2953872033) (115,-0.3251856044) (120,-0.3546649602)
+(125,-0.3839189042) (130,-0.4130168892) (135,-0.4420114715) (140,-0.4709431608) (145,-0.4998437067)
+(150,-0.5287383639) (155,-0.5576474822) (160,-0.586587643) (165,-0.6155724849) (170,-0.6446133146)
+(175,-0.6737195662) (180,-0.7028991518) (185,-0.7321587328) (190,-0.7615039334) (195,-0.7909395102)
+(200,-0.8204694883)};
+\addplot[teal,thick] coordinates {(0,0) (5,0) (10,0) (15,0) (20,0)
+(25,0) (30,0) (35,0) (40,0) (45,0)
+(50,0) (55,0) (60,0) (65,0) (70,0)
+(75,0) (80,0) (85,0) (90,0) (95,0)
+(100,0) (105,0) (110,0) (115,0) (120,0)
+(125,0) (130,0) (135,0) (140,0) (145,0)
+(150,0) (155,0) (160,0) (165,0) (170,0)
+(175,0) (180,0) (185,0) (190,0) (195,0)
+(200,0)};
+\end{axis}
+\end{tikzpicture}
+\caption{Domain sensitivity at fixed $h=0.0625$. The left panel compares
+values on the common part of the three domains. The right panel shows
+signed differences from $L=600$ on $[0,200]$.}
+\label{fig:domain}
+\end{figure}
+
+\subsection{Matched policy iteration and projected SOR}
+The solver comparison fixes the Stage 2 model on $[0,600]$, the same
+LCP on each grid, payoff initialisation and an absolute residual target
+of $10^{-8}$. Projected SOR uses $\omega=1.2$. Each sweep relaxes the
+Gauss--Seidel row update and projects the result onto the payoff
+constraint. Both algorithms use \eqref{eq:lcp} to stop.
+Table~\ref{tab:cost} reports iterations and wall time, including setup,
+for two grids coarse enough to run the sequential Python sweeps.
+Both solvers agree within $4.0\times10^{-8}$ on the tested grids.
+The achieved residuals are below $2.3\times10^{-13}$ for policy iteration
+and just under $10^{-8}$ for projected SOR. The maximum policy price differences from shooting are $0.40135$
+and $0.19192$ at $h=5$ and $2.5$, respectively, and dominate the
+inter-solver gaps. Policy iteration is faster in this implementation
+and scale. The recorded timings are single runs, and the banded policy
+solves use compiled SciPy whereas projected SOR uses Python loops.
+
+For the main four-level study, policy iterations are $62,123,246,492$.
+The numbers of unknowns are $1199,2399,4799,9599$. Their respective
+single-run policy times are approximately $0.0054,0.0150,0.0536,0.1963$
+seconds in the recorded environment. Thus a linear-cost banded solve per
+iteration does not make the full refinement sequence linear in the total
+number of unknowns. Both the system size and the number of policy steps
+grow under refinement.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Matched Stage 2 solver comparison at $L=600$ and
+$\tau=10^{-8}$. Times include setup. The solver gap is the maximum
+nodal difference between policy iteration and projected SOR.}
+\label{tab:cost}
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+$h$ & Unknowns & Policy steps & Policy s & PSOR sweeps & PSOR s & Max.\ solver gap\\
+\midrule
+5.0 & 119 & 6  & 0.00044 & 10260 & 1.13 & $3.98\times10^{-8}$\\
+2.5 & 239 & 12 & 0.00067 & 41073 & 10.77 & $3.89\times10^{-8}$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 %%%%%%%%%%%%%%
-\section{Conclusions and reproducibility}\label{sec:conclusions}
-The monotone LCP solver reproduces the analytic constant-volatility price and approaches the local-volatility fixed-domain solution under mesh refinement. Domain truncation is the dominant observed sensitivity for the chosen endpoints. Further precision for the unbounded model requires a separately justified far-field treatment or larger-domain study. A threshold inferred from contact nodes is limited by mesh and classification tolerance.
+\section{Conclusions}
+The analytic benchmark tests the price and exercise threshold jointly.
+On a fixed truncated domain the local-volatility prices approach an
+independent continuous solution at approximately first order.
+For the main fine grid on $[0,600]$, the numerical option value at the strike
+is $16.06528$ and the last contact node is $69.25$. The continuous
+finite-domain counterparts are $16.06008$ and $69.26448$.
+Tighter algebraic stopping requests leave the computed prices
+unchanged, while moving the outer boundary changes the option value at the
+strike about $51$ times as much as the finest study mesh comparison.
+Reporting the chosen outer boundary is therefore necessary for
+interpreting the quoted price. A certified infinite-domain value
+would require further analysis of the far-field approximation.
 
-From the repository root, install \texttt{american\_put\_project/requirements-dev.txt} and run \texttt{python -m pytest -q}. The working scripts, saved results, independent checks and figure sources are described in the repository README. The staged report data come from the recorded runs and the separate solver comparison. Numerical timings depend on the platform.
+%%%%%%%%%%%%%%
+\appendix
+\section{Reproduction and numerical evidence}\label{sec:reproduction}
+From the repository root, install the dependencies and run
+\begin{verbatim}
+python -m pip install -r american_put_project/requirements-dev.txt
+python -m pytest -q
+python american_put_project/run_all.py
+\end{verbatim}
+The full entry point regenerates both stages, figures, continuous
+references and solver comparisons in fresh directories under
+\path{american_put_project/reproduction_runs/}. The 64 automated tests
+cover model data, assembly, policy iteration and nested-grid comparison, and
+the saved-array checker performs 50 checks. A full rerun during final
+preparation reproduced all 11 strict Stage 2 solution files and all four
+Stage 1 price arrays exactly. Collocation and the non-time fields of the
+matched solver comparison also reproduced exactly.
 
-AI assisted with modelling, code, experiments, review and drafting. The saved AI-generated prediction records were written before their associated runs and are labelled accordingly. Each student must complete their own predictions and reconciliation as required by the course, reproduce and interrogate the methods, and record actual individual contributions. These human actions and the course's formal five-gate worksheet remain pending. The independent numerical checks reported here are technical evidence for that review.
+The published data sources are fixed independently of fresh rerun timings.
+\begin{itemize}\raggedright
+\item Stage 1 uses \path{results/stage1_convergence.csv}. Shooting
+      comparisons use \path{results/stage2_convergence.csv}.
+\item Stage 2 grid, reference, shape, tolerance and domain evidence uses
+      \path{stage2_D_runs/20261105T132543802032Z/}, including
+      \path{mesh_convergence_D.csv}, \path{reference_check_D.csv},
+      \path{solver_tolerance_D.csv}, \path{domain_sensitivity_D.csv}
+      and the saved solution arrays.
+\item Independent checks use the files \path{collocation.json} and
+      \path{solver_comparison.csv} under \path{results/independent_audit/}.
+      The domain extension uses \path{results/ODE_domain_extension.csv}.
+\end{itemize}
+The strict study requested $10^{-8}$ on both reference grids. The earlier
+unified driver requested $2\times10^{-6}$ and $10^{-5}$. Their price
+vectors agree, but stopping statuses differ. Statements that the references
+failed their requested target refer to the strict study. The tolerance
+sweep in Table~\ref{tab:tolerance} also uses that study at $h=0.0625$.
+
+Recorded timings use NumPy 1.26.4, SciPy 1.13.1 and Matplotlib 3.9.2 on
+macOS arm64. The strict Stage 2 study used Python 3.12.7. Timings depend
+on the environment. The code implements assembly, policy selection,
+residual checks, contact extraction and projected sweeps. SciPy supplies
+the banded solve, ODE integration, root finding and collocation.
+All plotted data are embedded in this source. Compile with
+\texttt{tectonic main.tex} from \path{report/}.
+
+%%%%%%%%%%%%%%
+\section{AI transparency and technical verification record}\label{sec:audit}
+AI assistance covered mathematical formulation and exposition, numerical
+code and code review, experiment execution, figure and table preparation,
+and report editing. The log at \path{protocols/AI_Transparency_Log.md}
+records this scope. A development correction changed the exact-tie policy
+to continuation, avoiding slow one-node propagation through the
+zero-payoff tail. Verification then checked the original complementarity
+residual and the price and contact diagnostics. Final report checks also
+corrected the $h=0.25$ entry for $\min a$ and distinguished the strict
+reference study from the earlier driver's looser stopping requests.
+
+Prediction and reconciliation records are stored under \path{protocols/}
+in \path{precomputation_predictions.md} and \path{reconciliation.md},
+and in the timestamped Stage 2 prediction/outcome logs. These predictions were AI-assisted and recorded
+before their production solves. They do not document individual students'
+prior predictions. Table~\ref{tab:audit} maps the available technical
+evidence to the five course audit headings \cite{projectBrief}.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Technical evidence organised by the course's five audit gates.}
+\label{tab:audit}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{.25\linewidth}>{\raggedright\arraybackslash}p{.70\linewidth}@{}}
+\toprule
+Gate & Recorded technical evidence\\
+\midrule
+Transcription & Model, payoff, stage parameters, boundary data and exact
+benchmark in Section~\ref{sec:model}, supported by model-data tests.\\[3pt]
+Structure and indexing & Hand-calculated stencil rows, endpoint elimination,
+nonpositive off-diagonals and comparison argument in
+Section~\ref{sec:discrete}, supported by assembly tests.\\[3pt]
+Linearisation & Exercise/continuation row selection and a traced policy solve
+in Section~\ref{sec:policy}, with exhaustive active-set checks on a small grid.\\[3pt]
+Independent reproduction & Exact benchmark, continuous ODE checks and a full
+rerun with saved-array comparison, as described in
+Sections~\ref{sec:verification} and \ref{sec:reproduction}.\\[3pt]
+Interrogation & Explicit explanations of the operator, solver updates,
+reference bias and error separation, supported by the experiments in
+Section~\ref{sec:results}.\\
+\bottomrule
+\end{tabular}
+\end{table}
+These entries record technical checks and AI-assisted preparation.
+Team6 is responsible for the separate individual contribution statements
+and student/course audit sign-off. The computational records do not
+establish individual reproduction, oral answers or student signatures.
+
+%%%%%%%%%%%%%%
 \begin{thebibliography}{9}
-\bibitem{pack} Course materials, \emph{Problem Pack, Project 2}, perpetual American put direction, pp.~8--9.
-\bibitem{brief} Course materials, \emph{Project 2 Brief}, pp.~1--4.
-\bibitem{policy} C. Reisinger and J. H. Witte, On the use of policy iteration as an easy way of pricing American options, \emph{SIAM Journal on Financial Mathematics} 3 (2012), 459--478, \url{https://doi.org/10.1137/110823328}.
+\small
+\bibitem{projectBrief}
+Course materials, \emph{Project 2 Brief. Numerical Solution of Elliptic
+Boundary Value Problems}, pp.~1--4.
+\bibitem{problemPack}
+Course materials, \emph{Directions for the PDE BVP Project}, open direction
+5.3, pp.~8--9, and standing protocols, p.~10.
+\bibitem{rw}
+C. Reisinger and J.~H. Witte, On the use of policy iteration as an easy
+way of pricing American options, \emph{SIAM Journal on Financial
+Mathematics} 3 (2012), 459--478.
+\href{https://doi.org/10.1137/110823328}{doi:10.1137/110823328}.
+\bibitem{lapack}
+LAPACK, \emph{DGTSV. Solution of a tridiagonal linear system by Gaussian
+elimination with partial pivoting}.
+\url{https://netlib.org/lapack/double/dgtsv.f}.
+\bibitem{scipyIVP}
+SciPy 1.13.1 reference guide, \emph{scipy.integrate.solve\_ivp}.
+\url{https://docs.scipy.org/doc/scipy-1.13.1/reference/generated/scipy.integrate.solve_ivp.html}.
 \end{thebibliography}
 \end{document}

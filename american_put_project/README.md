@@ -30,7 +30,7 @@ python independent_audit.py
 
 Stage 1 单独运行时会更新本目录下对应 CSV 和图片。Stage 2 会新建目录。核验脚本会在指定结果目录更新 `verification_D.json` 和点值对照 CSV，因此如需保留原始文件的字节内容，请先复制结果目录。独立审核默认更新 `results/independent_audit/`。
 
-较早的 `run_project.py` 可直接运行，也支持 `--output-dir <目录>` 将结果、图和预测记录写入指定目录。直接运行会更新旧版 `results/`、`figures/` 和 `protocols/ai_solver_audit.json`，预测记录会使用新的时间戳文件。`build_report.py --input-root <目录>` 生成基于该目录旧版原型结果的 PDF。它生成的八页 PDF 与 `report/main.pdf` 为两份不同阶段的草稿。
+较早的 `run_project.py` 可直接运行，也支持 `--output-dir <目录>` 将结果、图和预测记录写入指定目录。直接运行会更新旧版 `results/`、`figures/` 和 `protocols/ai_solver_audit.json`，预测记录会使用新的时间戳文件。`build_report.py --input-root <目录>` 生成旧版原型的八页 PDF。Team6 的正式报告为 [report/main.pdf](report/main.pdf)，对应 [LaTeX 源码](report/main.tex)。源码已内嵌图表数据，可在 `report/` 目录用 `tectonic main.tex` 独立编译。
 
 ## 数据与结论
 
@@ -38,6 +38,7 @@ Stage 1 单独运行时会更新本目录下对应 CSV 和图片。Stage 2 会�
 - `results/independent_audit/` 包含独立配点和同条件 PSOR 对比。两种连续方法使用相同模型，计算方法不同。
 - 历史细网格参考的实际残差高于请求的 $10^{-8}$，程序将其标记为浮点下限。域上界从 400 扩至 600，$V_h(100)$ 增加约 0.2343。有限域参考值与无穷域精度需要分别讨论。
 - `report/main.tex` 和 `slides/main.tex` 对应当前仓库的单调迎风方法。报告使用历史已保存数据中的数字，重跑产生的新数字需要人工核对后更新文稿。
+- 15 分钟录制汇报使用 [Beamer 幻灯片](video_presentation/Perpetual_American_Put_15min_Beamer.pdf)、[LaTeX 源码](video_presentation/Perpetual_American_Put_15min_Beamer.tex)和[英文讲稿](video_presentation/Speaker_Script_15min_Beamer.docx)。
 - `archive/` 保留旧上传包及当时的校验和。历史文件的路径和状态描述代表当时的交付，不作为现在的操作说明。
 
 ## 审核与待完成事项
